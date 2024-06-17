@@ -4,6 +4,7 @@
 "Client": a general user who wants to create personalized workout and diet programs for themselves. 
 
 **User Personas**
+
 User Persona 1:
 
 Name: Emily Johnson
