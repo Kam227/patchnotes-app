@@ -3,7 +3,7 @@
 **User Roles**:
 "Client": a general user who wants to create personalized workout and diet programs for themselves. 
 
-**User Personas**
+**User Personas**:
 
 User Persona 1:
 
@@ -23,7 +23,7 @@ Technology Use: David is comfortable using his smartphone for basic tasks but pr
 Motivation: David recently experienced a health scare and is determined to adopt a healthier lifestyle to manage his weight and improve his overall fitness. He seeks a structured program that provides daily guidance and accountability.
 Pain Points: David struggles with maintaining motivation for regular exercise due to a demanding job and family responsibilities. He also finds it difficult to navigate conflicting dietary advice and needs clear, concise recommendations tailored to his health goals.
 
-**User Stories**
+**User Stories**:
 1. As a user, I want to create my profile, so that I can personalize my workout and diet plans based on my fitness goals and preferences.
 
 2. As a user, I want to input my current weight and body measurements, so that the app can track my progress accurately over time.
