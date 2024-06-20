@@ -1,6 +1,7 @@
 # capstone-project
 
 **User Roles**:
+
 "Visitor": A general user who wants to browse and read the latest video game patch notes without creating an account.
 "Registered User": A user who creates an account to comment, upvote comments, and participate in discussions about video game updates.
 
