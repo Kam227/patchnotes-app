@@ -1,45 +1,38 @@
 # capstone-project
 
 **User Roles**:
-"Client": a general user who wants to create personalized workout and diet programs for themselves. 
+"Visitor": A general user who wants to browse and read the latest video game patch notes without creating an account.
+"Registered User": A user who creates an account to comment, upvote comments, and participate in discussions about video game updates.
 
 **User Personas**:
 
 User Persona 1:
 
-Name: Emily Johnson
+Name: John
 Location: Miami, Florida, USA
-Age: 35
-Technology Use: Emily is proficient with technology and uses her smartphone extensively for various apps and daily tasks. She accesses fitness and diet apps multiple times a day, particularly during meal planning and workout sessions.
-Motivation: Emily is preparing for her wedding in six months and wants to achieve a toned physique for the occasion. She is highly motivated to follow a structured diet and workout plan that will help her achieve her fitness goals within the timeframe.
-Pain Points: Emily finds it challenging to stay consistent with her diet plan due to occasional social gatherings and work-related events where healthy eating options are limited. She also struggles with finding time for longer workout sessions amidst her busy schedule.
+Age: 28
+Technology Use: John is a tech-savvy individual who uses multiple devices, including a gaming PC, a smartphone, and a tablet. He spends a lot of time on gaming forums and social media to stay updated on his favorite games.
+Motivation: John wants to stay informed about the latest updates and changes in his favorite games to remain competitive and informed when discussing games with friends.
+Pain Points: John finds it cumbersome to navigate through multiple websites and forums to find detailed patch notes. He also dislikes the cluttered and often confusing presentation of updates on official sites.
 
 User Persona 2:
 
-Name: David Smith
+Name: Sarah
 Location: Toronto, Ontario, Canada
-Age: 45
-Technology Use: David is comfortable using his smartphone for basic tasks but prefers using his tablet or laptop for more detailed activities like tracking his fitness progress and meal planning. He logs into the app daily to monitor his diet and workout routines.
-Motivation: David recently experienced a health scare and is determined to adopt a healthier lifestyle to manage his weight and improve his overall fitness. He seeks a structured program that provides daily guidance and accountability.
-Pain Points: David struggles with maintaining motivation for regular exercise due to a demanding job and family responsibilities. He also finds it difficult to navigate conflicting dietary advice and needs clear, concise recommendations tailored to his health goals.
+Age: 34
+Technology Use: Sarah uses her smartphone and laptop extensively for work and leisure. She enjoys casual gaming in her free time and prefers apps and websites that are user-friendly and easy to navigate.
+Motivation: Sarah wants a straightforward way to keep track of updates for the few games she plays casually. She values clear, concise information that is easy to understand.
+Pain Points: Sarah struggles with finding time to sift through lengthy and technical patch notes. She prefers summarized updates and dislikes overly complex websites.
 
 **User Stories**:
-1. As a user, I want to create my profile, so that I can personalize my workout and diet plans based on my fitness goals and preferences.
+1. As a visitor, I want to browse patch notes for various games, so that I can stay updated without needing an account.
+2. As a registered user, I want to create a profile, so that I can participate in discussions and upvote comments.
+3. As a registered user, I want to comment on patch notes, so that I can discuss changes with other players and share my opinions.
+4. As a registered user, I want to upvote comments, so that I can highlight the most useful and insightful discussions.
+5. As a registered user, I want to search for specific patch notes, so that I can quickly find updates for the games I am interested in.
+6. As a registered user, I want to receive notifications about updates for my favorite games, so that I can stay informed without constantly checking the website.
+7. As a user, I want to have a clean and simple interface, so that I can easily find and read patch notes without distraction.
+8. As a user, I want to see summaries of patch notes, so that I can quickly understand the major changes without reading through detailed descriptions.
+9. As a user, I want to sort patch notes by date or game, so that I can find the most relevant updates quickly.
+10. As a user, I want to go in-depth about specific items or characters updated, so that I can understand the impact of these changes.
 
-2. As a user, I want to input my current weight and body measurements, so that the app can track my progress accurately over time.
-
-3. As a user, I want to set specific fitness goals (e.g., weight loss, muscle gain, improved endurance), so that the app can tailor workout and diet recommendations accordingly.
-
-4. As a user, I want to receive daily workout routines, so that I can follow a structured exercise plan to achieve my fitness goals effectively.
-
-5. As a user, I want to receive daily meal plans with recipes and nutritional information, so that I can maintain a balanced diet that supports my fitness objectives.
-
-6. As a user, I want to track my daily food intake and exercise activities, so that I can monitor my progress and stay accountable to my goals.
-
-7. As a user, I want to receive notifications and reminders for my scheduled workouts and meals, so that I can stay consistent with my fitness routine.
-
-8. As a user, I want to see my progress visually represented (e.g., graphs, charts), so that I can understand how well I am progressing towards my fitness goals.
-   
-9. As a user, I want to be able to adjust my workout intensity and meal preferences over time, so that the app can adapt to my changing fitness needs.
-
-10. As a user, I want to connect with a community or support group within the app, so that I can share experiences, tips, and motivation with others on similar fitness journeys.
