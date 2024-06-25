@@ -1,0 +1,52 @@
+[
+    {
+        "votesCount": 5,
+        "userId": 1,
+        "commentId": 1
+    },
+    {
+        "votesCount": 3,
+        "userId": 2,
+        "commentId": 2
+    },
+    {
+        "votesCount": 2,
+        "userId": 3,
+        "commentId": 3
+    },
+    {
+        "votesCount": 4,
+        "userId": 4,
+        "commentId": 4
+    },
+    {
+        "votesCount": 6,
+        "userId": 5,
+        "commentId": 5
+    },
+    {
+        "votesCount": 2,
+        "userId": 6,
+        "commentId": 6
+    },
+    {
+        "votesCount": 3,
+        "userId": 7,
+        "commentId": 7
+    },
+    {
+        "votesCount": 5,
+        "userId": 8,
+        "commentId": 8
+    },
+    {
+        "votesCount": 1,
+        "userId": 9,
+        "commentId": 9
+    },
+    {
+        "votesCount": 4,
+        "userId": 10,
+        "commentId": 10
+    }
+]

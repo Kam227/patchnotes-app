@@ -1,0 +1,72 @@
+[
+    {
+        "comment": "I think the new policy is a step in the right direction.",
+        "replies": [],
+        "votesCount": 5,
+        "voters": [1, 2, 3, 4, 5],
+        "userId": 1
+    },
+    {
+        "comment": "This decision is going to have a huge impact on the economy.",
+        "replies": [],
+        "votesCount": 3,
+        "voters": [6, 7, 8],
+        "userId": 2
+    },
+    {
+        "comment": "I completely disagree with the article.",
+        "replies": [],
+        "votesCount": 2,
+        "voters": [9, 10],
+        "userId": 3
+    },
+    {
+        "comment": "Great insights! Thanks for sharing.",
+        "replies": [],
+        "votesCount": 4,
+        "voters": [1, 2, 3, 4],
+        "userId": 4
+    },
+    {
+        "comment": "This is a well-written piece. Kudos to the author!",
+        "replies": [],
+        "votesCount": 6,
+        "voters": [5, 6, 7, 8, 9, 10],
+        "userId": 5
+    },
+    {
+        "comment": "I have some doubts about the authenticity of this information.",
+        "replies": [],
+        "votesCount": 2,
+        "voters": [1, 2],
+        "userId": 6
+    },
+    {
+        "comment": "Could you provide more sources to back up these claims?",
+        "replies": [],
+        "votesCount": 3,
+        "voters": [3, 4, 5],
+        "userId": 7
+    },
+    {
+        "comment": "This article is very informative. Learned a lot.",
+        "replies": [],
+        "votesCount": 5,
+        "voters": [6, 7, 8, 9, 10],
+        "userId": 8
+    },
+    {
+        "comment": "I don't think this is accurate.",
+        "replies": [],
+        "votesCount": 1,
+        "voters": [1],
+        "userId": 9
+    },
+    {
+        "comment": "Thank you for the detailed analysis.",
+        "replies": [],
+        "votesCount": 4,
+        "voters": [2, 3, 4, 5],
+        "userId": 10
+    }
+]
