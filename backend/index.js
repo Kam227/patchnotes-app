@@ -1,104 +1,12 @@
-const request = require('request-promise');
-const cheerio = require('cheerio');
 const express = require('express');
 const cors = require('cors');
+const urls_OW = require('./supplements/getPatchNotesUrls_OW');
+const details_OW = require('./supplements/getPatchNotesDetails_OW');
+const urls_VAL = require('./supplements/getPatchNotesUrls_VAL');
+const details_VAL = require('./supplements/getPatchNotesDetails_VAL');
 
-const BASE_URL = "https://overwatch.blizzard.com/en-us/news/patch-notes/";
-
-const getPatchNotesUrls = async () => {
-    try {
-        const response = await request({
-            uri: BASE_URL,
-            headers: {
-                'User-Agent': 'Mozilla/5.0',
-                'Accept': 'text/html',
-                'Accept-Language': 'en-US'
-            }
-        });
-        const $ = cheerio.load(response);
-
-        const years = [];
-        const months = [];
-
-        $('#year-select option').each((index, element) => {
-            const year = $(element).val();
-            if (year) {
-                years.push(year);
-            }
-        });
-
-        $('#month-select option').each((index, element) => {
-            const month = $(element).val();
-            if (month) {
-                months.push(month);
-            }
-        });
-
-        const patchNotesUrls = [];
-        years.forEach(year => {
-            months.forEach(month => {
-                patchNotesUrls.push({
-                    url: `${BASE_URL}live/${year}/${month}/`,
-                    year,
-                    month
-                });
-            });
-        });
-
-        return patchNotesUrls;
-    } catch (error) {
-        console.error('Error while fetching patch notes:', error.message);
-        throw new Error('Failed to fetch patch notes');
-    }
-}
-
-const getPatchNotesDetails = async (year, month) => {
-    const url = `${BASE_URL}live/${year}/${month}/`;
-    try {
-        const response = await request({
-            uri: url,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Connection': 'keep-alive'
-            }
-        });
-        const $ = cheerio.load(response);
-
-        const patchDetails = {
-            tank: [],
-            damage: [],
-            support: [],
-            mapUpdates: [],
-            bugFixes: []
-        };
-
-        const roleSections = {
-            TANK: patchDetails.tank,
-            DAMAGE: patchDetails.damage,
-            SUPPORT: patchDetails.support,
-            "MAP UPDATES": patchDetails.mapUpdates,
-            "BUG FIXES": patchDetails.bugFixes
-        };
-
-        $('.PatchNotes-section').each((index, element) => {
-            const sectionTitle = $(element).find('.PatchNotes-sectionTitle').text().trim().toUpperCase();
-            if (roleSections[sectionTitle]) {
-                $(element).find('.PatchNotes-sectionTitle').remove();
-                const content = $(element).html().trim();
-                if (content) {
-                    roleSections[sectionTitle].push(content);
-                }
-            }
-        });
-
-        return patchDetails;
-    } catch (error) {
-        console.error('Error while fetching patch notes details:', error.message);
-        throw new Error('Failed to fetch patch notes details');
-    }
-}
+const OVERWATCH_URL = "https://overwatch.blizzard.com/en-us/news/patch-notes/";
+const VALORANT_URL = "https://playvalorant.com/en-us/news/tags/patch-notes/";
 
 const startServer = async () => {
     const app = express();
@@ -114,28 +22,50 @@ const startServer = async () => {
         res.send('game selection');
     });
 
-    app.get('/patchnotes', async (req, res) => {
+    app.get('/patchnotes/overwatch', async (req, res) => {
         try {
-            const urls = await getPatchNotesUrls();
+            const urls = await urls_OW.getPatchNotesUrls_OW(OVERWATCH_URL);
             res.json(urls);
         } catch (error) {
-            console.error('Error in /patchnotes route:', error.message);
+            console.error('Error in /patchnotes/overwatch route:', error.message);
             res.status(500).send({ error: 'Error while fetching patch notes' });
         }
     });
 
-    app.get('/patchnotes/:year/:month', async (req, res) => {
+    app.get('/patchnotes/valorant', async (req, res) => {
+        try {
+            const urls = await urls_VAL.getPatchNotesUrls_VAL(VALORANT_URL);
+            res.json(urls);
+        } catch (error) {
+            console.error('Error in /patchnotes/valorant route:', error.message);
+            res.status(500).send({ error: 'Error while fetching patch notes' });
+        }
+    });
+
+    app.get('/patchnotes/overwatch/:year/:month', async (req, res) => {
         const { year, month } = req.params;
         try {
-            const details = await getPatchNotesDetails(year, month);
+            const details = await details_OW.getPatchNotesDetails_OW(OVERWATCH_URL, year, month);
             res.json(details);
         } catch (error) {
-            console.error('Error in /patchnotes/:year/:month route:', error.message);
+            console.error('Error in /patchnotes/overwatch/:year/:month route:', error.message);
             res.status(500).send({ error: 'Error while fetching patch notes details' });
         }
     });
 
-    app.get('/game/patch/character', (req, res) => {
+    app.get('/patchnotes/valorant/:version', async (req, res) => {
+        const { version } = req.params;
+        try {
+            const details = await details_VAL.getPatchNotesDetails_VAL(VALORANT_URL, version);
+            res.json(details);
+        } catch (error) {
+            console.error('Error in /patchnotes/valorant/:version route:', error.message);
+            res.status(500).send({ error: 'Error while fetching patch notes details' });
+        }
+    });
+
+    // work on this later
+    app.get('/game/patchnotes/:id', (req, res) => {
         res.send('character stats section');
     });
 }

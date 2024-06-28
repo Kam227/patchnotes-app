@@ -9,9 +9,11 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<GameSelection />} />
-        <Route path="/game" element={<PatchSelection />} />
-        <Route path="/game/patch/:year/:month" element={<Patchnotes />} />
-        <Route path="/game/patch/character" element={<p>Character Statistics</p>} />
+        <Route path="/game/overwatch" element={<PatchSelection game="overwatch" />} />
+        <Route path="/game/valorant" element={<PatchSelection game="valorant" />} />
+        <Route path="/patchnotes/overwatch/:year/:month" element={<Patchnotes game="overwatch" />} />
+        <Route path="/patchnotes/valorant/:version" element={<Patchnotes game="valorant" />} />
+        <Route path="/game/patch/:id" element={<p>Character Statistics</p>} />
       </Routes>
     </Router>
   );
