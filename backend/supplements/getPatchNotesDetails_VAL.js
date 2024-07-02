@@ -1,8 +1,10 @@
 const request = require('request-promise');
 const cheerio = require('cheerio');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 const getPatchNotesDetails_VAL = async (url, version) => {
-    const uri = `https://playvalorant.com/en-us/news/game-updates/valorant-patch-notes-${version}/`;
+    const uri = `${url}valorant-patch-notes-${version}/`;
 
     try {
         const response = await request({
@@ -21,18 +23,93 @@ const getPatchNotesDetails_VAL = async (url, version) => {
             bugFixes: []
         };
 
+        const roleSections = {
+            "AGENT UPDATES": patchDetails.agentUpdates,
+            "MAP UPDATES": patchDetails.mapUpdates,
+            "BUG FIXES": patchDetails.bugFixes
+        };
+
         $('.sc-4225abdc-0').each((index, element) => {
             const sectionTitle = $(element).find('h1, h2').first().text().trim().toUpperCase();
-            const content = $(element).html().trim();
-
-            if (sectionTitle.includes('AGENT UPDATES')) {
-                patchDetails.agentUpdates.push(content);
-            } else if (sectionTitle.includes('MAP UPDATES')) {
-                patchDetails.mapUpdates.push(content);
-            } else if (sectionTitle.includes('BUG FIXES')) {
-                patchDetails.bugFixes.push(content);
+            if (roleSections[sectionTitle]) {
+                const content = $(element).html().trim();
+                if (content) {
+                    roleSections[sectionTitle].push(content);
+                }
             }
         });
+
+        const patch = await prisma.patchnotes_val.findUnique({
+            where: {
+                text: `valorant-patch-notes-${version}`
+            }
+        });
+
+        let patchId;
+        if (!patch) {
+            const newPatch = await prisma.patchnotes_val.create({
+                data: {
+                    text: `valorant-patch-notes-${version}`
+                }
+            });
+            patchId = newPatch.id;
+        } else {
+            patchId = patch.id;
+        }
+
+        for (const agentUpdate of patchDetails.agentUpdates) {
+            const existingAgentUpdate = await prisma.agent.findFirst({
+                where: {
+                    patchId: patchId,
+                    text: agentUpdate
+                }
+            });
+
+            if (!existingAgentUpdate) {
+                await prisma.agent.create({
+                    data: {
+                        patchId: patchId,
+                        text: agentUpdate
+                    }
+                });
+            }
+        }
+
+        for (const mapUpdate of patchDetails.mapUpdates) {
+            const existingMapUpdate = await prisma.valMap.findFirst({
+                where: {
+                    patchId: patchId,
+                    text: mapUpdate
+                }
+            });
+
+            if (!existingMapUpdate) {
+                await prisma.valMap.create({
+                    data: {
+                        patchId: patchId,
+                        text: mapUpdate
+                    }
+                });
+            }
+        }
+
+        for (const bugFix of patchDetails.bugFixes) {
+            const existingBugFix = await prisma.valBug.findFirst({
+                where: {
+                    patchId: patchId,
+                    text: bugFix
+                }
+            });
+
+            if (!existingBugFix) {
+                await prisma.valBug.create({
+                    data: {
+                        patchId: patchId,
+                        text: bugFix
+                    }
+                });
+            }
+        }
 
         return patchDetails;
     } catch (error) {

@@ -1,7 +1,11 @@
 const request = require('request-promise');
 const cheerio = require('cheerio');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
-const getPatchNotesUrls_OW = async (url) => {
+const getPatchNotesUrls_OW = async () => {
+    const url = "https://overwatch.blizzard.com/en-us/news/patch-notes/";
+
     try {
         const response = await request({
             uri: url,
@@ -31,15 +35,22 @@ const getPatchNotesUrls_OW = async (url) => {
         });
 
         const patchNotesUrls = [];
-        years.forEach(year => {
-            months.forEach(month => {
-                patchNotesUrls.push({
-                    url: `${url}live/${year}/${month}/`,
-                    year,
-                    month
+        for (const year of years) {
+            for (const month of months) {
+                const patchUrl = `${url}live/${year}/${month}/`;
+                patchNotesUrls.push({ year, month, url: patchUrl });
+
+                const existingPatchNote = await prisma.patchnotes_ow.findFirst({
+                    where: { text: `${year}/${month}` }
                 });
-            });
-        });
+
+                if (!existingPatchNote) {
+                    await prisma.patchnotes_ow.create({
+                        data: { text: `${year}/${month}` }
+                    });
+                }
+            }
+        }
 
         return patchNotesUrls;
     } catch (error) {
@@ -48,4 +59,4 @@ const getPatchNotesUrls_OW = async (url) => {
     }
 }
 
-module.exports = { getPatchNotesUrls_OW }
+module.exports = { getPatchNotesUrls_OW };
