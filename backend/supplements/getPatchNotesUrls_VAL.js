@@ -1,7 +1,11 @@
 const request = require('request-promise');
 const cheerio = require('cheerio');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
-const getPatchNotesUrls_VAL = async (url) => {
+const getPatchNotesUrls_VAL = async () => {
+    const url = "https://playvalorant.com/en-us/news/tags/patch-notes/";
+
     try {
         const response = await request({
             uri: url,
@@ -29,6 +33,19 @@ const getPatchNotesUrls_VAL = async (url) => {
                 }
             }
         });
+
+        for (const { version, url } of patchNotesUrls) {
+            const patchNote = `valorant-patch-notes-${version}`;
+            const existingPatchNote = await prisma.patchnotes_val.findFirst({
+                where: { text: patchNote }
+            });
+
+            if (!existingPatchNote) {
+                await prisma.patchnotes_val.create({
+                    data: { text: patchNote }
+                });
+            }
+        }
 
         return patchNotesUrls;
     } catch (error) {

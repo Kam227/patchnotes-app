@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+model User {
+  id Int @id @default(autoincrement())
+  username String
+  email String
+  password String
+}
+
+model Patchnotes_ow {
+  id Int @id @default(autoincrement())
+  text String
+  Tanks Tank[]
+  Damages Damage[]
+  Supports Support[]
+  Maps OwMap[]
+  Bugs OwBug[]
+}
+
+model Tank {
+  id Int @id @default(autoincrement())
+  patchId Int
+  text String
+  patchnote Patchnotes_ow @relation(fields: [patchId], references: [id])
+}
+
+model Damage {
+  id Int @id @default(autoincrement())
+  patchId Int
+  text String
+  patchnote Patchnotes_ow @relation(fields: [patchId], references: [id])
+}
+
+model Support {
+  id Int @id @default(autoincrement())
+  patchId Int
+  text String
+  patchnote Patchnotes_ow @relation(fields: [patchId], references: [id])
+}
+
+model OwMap {
+  id Int @id @default(autoincrement())
+  patchId Int
+  text String
+  patchnote Patchnotes_ow @relation(fields: [patchId], references: [id])
+}
+
+model OwBug {
+  id Int @id @default(autoincrement())
+  patchId Int
+  text String
+  patchnote Patchnotes_ow @relation(fields: [patchId], references: [id])
+}
+
+model Patchnotes_val {
+  id Int @id @default(autoincrement())
+  text String
+  Agents Agent[]
+  Maps ValMap[]
+  Bugs ValBug[]
+}
+
+model Agent {
+  id Int @id @default(autoincrement())
+  patchId Int
+  text String
+  patchnote Patchnotes_val @relation(fields: [patchId], references: [id])
+}
+
+model ValMap {
+  id Int @id @default(autoincrement())
+  patchId Int
+  text String
+  patchnote Patchnotes_val @relation(fields: [patchId], references: [id])
+}
+
+model ValBug {
+  id Int @id @default(autoincrement())
+  patchId Int
+  text String
+  patchnote Patchnotes_val @relation(fields: [patchId], references: [id])
+}

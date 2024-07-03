@@ -4,13 +4,14 @@ import { useParams } from 'react-router-dom';
 const Patchnotes = ({ game }) => {
     const { year, month, version } = useParams();
     const [patchDetails, setPatchDetails] = useState({
-        tank: [],
-        damage: [],
-        support: [],
-        agentUpdates: [],
-        mapUpdates: [],
-        bugFixes: []
+        Tanks: [],
+        Damages: [],
+        Supports: [],
+        Agents: [],
+        Maps: [],
+        Bugs: []
     });
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchPatchDetails = async () => {
@@ -27,74 +28,69 @@ const Patchnotes = ({ game }) => {
                     throw new Error('Network response was not ok');
                 }
                 const data = await response.json();
-                setPatchDetails(data);
+                console.log(data);
+
+                if (data.length > 0) {
+                    const patchData = data[0];
+                    setPatchDetails({
+                        Tanks: patchData.Tanks || [],
+                        Damages: patchData.Damages || [],
+                        Supports: patchData.Supports || [],
+                        Agents: patchData.Agents || [],
+                        Maps: patchData.Maps || [],
+                        Bugs: patchData.Bugs || []
+                    });
+                } else {
+                    setPatchDetails({
+                        Tanks: [],
+                        Damages: [],
+                        Supports: [],
+                        Agents: [],
+                        Maps: [],
+                        Bugs: []
+                    });
+                }
             } catch (error) {
                 console.error('Error fetching patch details:', error);
+                setError('Failed to fetch patch details. Please try again later.');
             }
         };
 
         fetchPatchDetails();
     }, [game, year, month, version]);
 
+    if (error) {
+        return <div>{error}</div>;
+    }
+
+    const renderPatchNotes = (category, notes) => (
+        <>
+            <h2>{category} Updates</h2>
+            {notes.length > 0 ? (
+                notes.map((content, index) => (
+                    <div key={index} dangerouslySetInnerHTML={{ __html: content.text }} />
+                ))
+            ) : (
+                <p>No {category.toLowerCase()} updates found.</p>
+            )}
+        </>
+    );
+
     return (
         <div>
             {game === 'overwatch' ? (
                 <>
-                    <h2>Tank Updates</h2>
-                    {patchDetails.tank.length > 0 ? (
-                        patchDetails.tank.map((content, index) => (
-                            <div key={index} dangerouslySetInnerHTML={{ __html: content }} />
-                        ))
-                    ) : (
-                        <p>No tank updates found.</p>
-                    )}
-
-                    <h2>Damage Updates</h2>
-                    {patchDetails.damage.length > 0 ? (
-                        patchDetails.damage.map((content, index) => (
-                            <div key={index} dangerouslySetInnerHTML={{ __html: content }} />
-                        ))
-                    ) : (
-                        <p>No damage updates found.</p>
-                    )}
-
-                    <h2>Support Updates</h2>
-                    {patchDetails.support.length > 0 ? (
-                        patchDetails.support.map((content, index) => (
-                            <div key={index} dangerouslySetInnerHTML={{ __html: content }} />
-                        ))
-                    ) : (
-                        <p>No support updates found.</p>
-                    )}
+                    {renderPatchNotes('Tank', patchDetails.Tanks)}
+                    {renderPatchNotes('Damage', patchDetails.Damages)}
+                    {renderPatchNotes('Support', patchDetails.Supports)}
+                    {renderPatchNotes('Map', patchDetails.Maps)}
+                    {renderPatchNotes('Bug', patchDetails.Bugs)}
                 </>
             ) : (
                 <>
-                    <h2>Agent Updates</h2>
-                    {patchDetails.agentUpdates.length > 0 ? (
-                        patchDetails.agentUpdates.map((content, index) => (
-                            <div key={index} dangerouslySetInnerHTML={{ __html: content }} />
-                        ))
-                    ) : (
-                        <p>No agent updates found.</p>
-                    )}
-
-                    <h2>Map Updates</h2>
-                    {patchDetails.mapUpdates.length > 0 ? (
-                        patchDetails.mapUpdates.map((content, index) => (
-                            <div key={index} dangerouslySetInnerHTML={{ __html: content }} />
-                        ))
-                    ) : (
-                        <p>No map updates found.</p>
-                    )}
-
-                    <h2>Bug Fixes</h2>
-                    {patchDetails.bugFixes.length > 0 ? (
-                        patchDetails.bugFixes.map((content, index) => (
-                            <div key={index} dangerouslySetInnerHTML={{ __html: content }} />
-                        ))
-                    ) : (
-                        <p>No bug fixes found.</p>
-                    )}
+                    {renderPatchNotes('Agent', patchDetails.Agents)}
+                    {renderPatchNotes('Map', patchDetails.Maps)}
+                    {renderPatchNotes('Bug', patchDetails.Bugs)}
                 </>
             )}
         </div>

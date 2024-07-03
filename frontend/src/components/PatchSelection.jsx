@@ -36,13 +36,15 @@ const PatchSelection = ({ game }) => {
                     key={index}
                     onClick={() => {
                         if (game === "overwatch") {
-                            navigate(`/patchnotes/overwatch/${note.year}/${note.month}`);
+                            const [year, month] = note.text.split('/');
+                            navigate(`/patchnotes/overwatch/${year}/${month}`);
                         } else {
-                            navigate(`/patchnotes/valorant/${note.version}`);
+                            const version = note.text.split('valorant-patch-notes-')[1];
+                            navigate(`/patchnotes/valorant/${version}`);
                         }
                     }}
                 >
-                    {note.year ? `${note.year} ${note.month}` : `Patch ${note.version}`}
+                    {note.text}
                 </p>
             ))}
         </div>
