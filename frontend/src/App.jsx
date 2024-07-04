@@ -28,7 +28,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={user ? <GameSelection /> : <LoginForm />} />
-          <Route path="/signup" element={ <SignupForm />} />
+          <Route path="/signup" element={<SignupForm />} />
           <Route path="/game/overwatch" element={<PatchSelection game="overwatch" />} />
           <Route path="/game/valorant" element={<PatchSelection game="valorant" />} />
           <Route path="/patchnotes/overwatch/:year/:month" element={<Patchnotes game="overwatch" />} />

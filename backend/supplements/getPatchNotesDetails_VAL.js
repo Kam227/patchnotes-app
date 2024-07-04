@@ -39,7 +39,7 @@ const getPatchNotesDetails_VAL = async (url, version) => {
             }
         });
 
-        const patch = await prisma.patchnotes_val.findUnique({
+        const patch = await prisma.patchnotes_val.findFirst({
             where: {
                 text: `valorant-patch-notes-${version}`
             }
