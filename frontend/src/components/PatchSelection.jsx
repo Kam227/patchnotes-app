@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Navbar from './Navbar';
+import '../styles/PatchSelection.css'
 
 const PatchSelection = ({ game }) => {
     const [patchNotes, setPatchNotes] = useState([]);
@@ -30,7 +32,8 @@ const PatchSelection = ({ game }) => {
     }
 
     return (
-        <div>
+        <div className='patch-selection'>
+            <Navbar />
             {patchNotes.map((note, index) => (
                 <p
                     key={index}

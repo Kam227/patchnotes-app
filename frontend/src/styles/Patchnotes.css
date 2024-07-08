@@ -1,0 +1,13 @@
+.patchnotes {
+    height: 100%
+}
+
+.vote {
+    display: flex;
+    justify-content: center;
+    margin-top: -15px;
+}
+
+.vote p {
+    padding: 3px;
+}

@@ -95,7 +95,7 @@ app.get('/patchnotes/overwatch/:year/:month', async (req, res) => {
     try {
         const patchDetails = await prisma.patchnotes_ow.findMany({
             where: { text: `${year}/${month}` },
-            include: { Tanks: true, Damages: true, Supports: true, Maps: true, Bugs: true },
+            include: { Tanks: true, Damages: true, Supports: true, Maps: true, Bugs: true, comments: { include: {user: true}, }, },
         });
         res.json(patchDetails);
     } catch (error) {
@@ -109,11 +109,103 @@ app.get('/patchnotes/valorant/:version', async (req, res) => {
     try {
         const patchDetails = await prisma.patchnotes_val.findMany({
             where: { text: `valorant-patch-notes-${version}` },
-            include: { Agents: true, Maps: true, Bugs: true },
+            include: { Agents: true, Maps: true, Bugs: true, comments: { include: { user: true }, }, },
         });
         res.json(patchDetails);
     } catch (error) {
         console.error('Error in /patchnotes/valorant/:version route:', error.message);
         res.status(500).send({ error: 'Error while fetching patch notes details' });
+    }
+});
+
+app.post('/patchnotes/overwatch/:year/:month/comments', async (req, res) => {
+    const { message, patchId, userId } = req.body;
+    try {
+        const newComment = await prisma.comment_ow.create({
+            data: {
+                message,
+                patchId,
+                userId,
+            },
+        });
+        res.json(newComment);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to create comment' });
+    }
+});
+
+app.post('/patchnotes/valorant/:version/comments', async (req, res) => {
+    const { message, patchId, userId } = req.body;
+    try {
+        const newComment = await prisma.comment_val.create({
+            data: {
+                message,
+                patchId,
+                userId,
+            },
+        });
+        res.json(newComment);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to create comment' });
+    }
+});
+
+app.delete('/patchnotes/overwatch/:year/:month/:commentId', cors(), async (req, res) => {
+    const { commentId } = req.params;
+    try {
+        const deletedComment = await prisma.comment_ow.delete({
+            where: { id: parseInt(commentId, 10) },
+        });
+        res.json(deletedComment)
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to delete card' });
+    }
+});
+
+app.delete('/patchnotes/valorant/:version/:commentId', cors(), async (req, res) => {
+    const { commentId } = req.params;
+    try {
+        const deletedComment = await prisma.comment_ow.delete({
+            where: { id: parseInt(commentId, 10) },
+        });
+        res.json(deletedComment)
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to delete card' });
+    }
+});
+
+app.put('/patchnotes/overwatch/:year/:month/:commentId/vote', cors(), async (req, res) => {
+    const { commentId } = req.params;
+    try {
+        const updatedVote = await prisma.comment_ow.update({
+            where: { id: parseInt( commentId, 10) },
+            data: {
+                voteCount: { increment: 1 },
+            },
+        });
+        res.json(updatedVote);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to upvote comment'});
+    }
+});
+
+app.put('/patchnotes/valorant/:version/:commentId/vote', cors(), async (req, res) => {
+    const { commentId } = req.params;
+    try {
+        const updatedVote = await prisma.comment_val.update({
+            where: { id: parseInt( commentId, 10) },
+            data: {
+                voteCount: { increment: 1 },
+            },
+        });
+        res.json(updatedVote);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to upvote comment'});
     }
 });
