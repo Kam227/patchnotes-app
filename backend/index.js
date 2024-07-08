@@ -93,14 +93,28 @@ app.get('/patchnotes/valorant', async (req, res) => {
 app.get('/patchnotes/overwatch/:year/:month', async (req, res) => {
     const { year, month } = req.params;
     try {
-        const patchDetails = await prisma.patchnotes_ow.findMany({
-            where: { text: `${year}/${month}` },
-            include: { Tanks: true, Damages: true, Supports: true, Maps: true, Bugs: true, comments: { include: {user: true}, }, },
-        });
-        res.json(patchDetails);
+      const patchDetails = await prisma.patchnotes_ow.findMany({
+        where: { text: `${year}/${month}` },
+        include: {
+          Tanks: true,
+          Damages: true,
+          Supports: true,
+          Maps: true,
+          Bugs: true,
+          comments: {
+            include: {
+              user: true,
+              replies: {
+                include: { user: true, replyTo: true }
+              }
+            }
+          }
+        },
+      });
+      res.json(patchDetails);
     } catch (error) {
-        console.error('Error in /patchnotes/overwatch/:year/:month route:', error.message);
-        res.status(500).send({ error: 'Error while fetching patch notes details' });
+      console.error('Error in /patchnotes/overwatch/:year/:month route:', error.message);
+      res.status(500).send({ error: 'Error while fetching patch notes details' });
     }
 });
 
@@ -207,5 +221,42 @@ app.put('/patchnotes/valorant/:version/:commentId/vote', cors(), async (req, res
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Failed to upvote comment'});
+    }
+});
+
+
+// REPLIES
+app.post('/patchnotes/overwatch/:year/:month/comments/:commentId/replies', async (req, res) => {
+    const { message, userId, replyToId, parentReplyId } = req.body;
+    const { commentId } = req.params;
+    try {
+      const newReply = await prisma.reply_ow.create({
+        data: {
+          message,
+          user: { connect: { id: userId } },
+          comment: { connect: { id: parseInt(commentId, 10) } },
+          replyTo: { connect: { id: replyToId } },
+          parentReply: parentReplyId ? { connect: { id: parentReplyId } } : undefined
+        },
+        include: { user: true, replyTo: true },
+      });
+      res.json(newReply);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to create reply' });
+    }
+});
+
+app.get('/patchnotes/overwatch/:year/:month/comments/:commentId/replies', async (req, res) => {
+    const { commentId } = req.params;
+    try {
+      const replies = await prisma.reply_ow.findMany({
+        where: { commentId: parseInt(commentId, 10) },
+        include: { user: true, replyTo: true, replies: true },
+      });
+      res.json(replies);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to fetch replies' });
     }
 });

@@ -22,6 +22,10 @@ model User {
   comments_val Comment_val[]
   votes_ow Vote_ow[]
   votes_val Vote_val[]
+  replies_ow Reply_ow[] @relation("UserReplies")
+  replies_val Reply_val[] @relation("UserRepliesVal")
+  repliesTo_ow Reply_ow[] @relation("UserRepliedTo")
+  repliesTo_val Reply_val[] @relation("UserRepliedToVal")
 }
 
 model Patchnotes_ow {
@@ -109,6 +113,7 @@ model Comment_ow {
   patchId Int
   user User @relation(fields:[userId], references:[id])
   userId Int
+  replies       Reply_ow[]
 }
 
 model Comment_val {
@@ -120,6 +125,7 @@ model Comment_val {
   patchId Int
   user User @relation(fields:[userId], references:[id])
   userId Int
+  replies       Reply_val[]
 }
 
 model Vote_ow {
@@ -136,4 +142,32 @@ model Vote_val {
   userId Int
   comment Comment_val @relation(fields:[commentId], references:[id])
   commentId Int
+}
+
+model Reply_ow {
+  id Int @id @default(autoincrement())
+  message String
+  userId Int
+  user User @relation(name: "UserReplies", fields: [userId], references: [id])
+  commentId Int
+  comment Comment_ow @relation(fields: [commentId], references: [id])
+  parentReplyId Int?
+  parentReply Reply_ow? @relation("ParentReply", fields: [parentReplyId], references: [id])
+  replyToId Int
+  replyTo User @relation(name: "UserRepliedTo", fields: [replyToId], references: [id])
+  replies Reply_ow[] @relation("ParentReply")
+}
+
+model Reply_val {
+  id Int @id @default(autoincrement())
+  message String
+  userId Int
+  user User @relation(name: "UserRepliesVal", fields: [userId], references: [id])
+  commentId Int
+  comment Comment_val @relation(fields: [commentId], references: [id])
+  parentReplyId Int?
+  parentReply Reply_val? @relation("ParentReply", fields: [parentReplyId], references: [id])
+  replyToId Int
+  replyTo User @relation(name: "UserRepliedToVal", fields: [replyToId], references: [id])
+  replies Reply_val[]  @relation("ParentReply")
 }
