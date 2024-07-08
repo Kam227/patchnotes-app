@@ -1,4 +1,4 @@
-
+-- CreateTable
 CREATE TABLE "Comment_ow" (
     "id" SERIAL NOT NULL,
     "message" TEXT NOT NULL,
