@@ -46,7 +46,10 @@ const getPatchNotesUrls_OW = async () => {
 
                 if (!existingPatchNote) {
                     await prisma.patchnotes_ow.create({
-                        data: { text: `${year}/${month}` }
+                        data: {
+                            text: `${year}/${month}`,
+                            details: {}
+                        }
                     });
                 }
             }
