@@ -17,27 +17,57 @@ const getPatchNotesDetails_VAL = async (url, version) => {
         });
         const $ = cheerio.load(response);
 
+        $('head, meta, .metadata, .header').remove();
+        $('[data-testid="article-card-carousel"]').remove();
+
         const patchDetails = {
             agentUpdates: [],
             mapUpdates: [],
             bugFixes: []
         };
 
-        const roleSections = {
-            "AGENT UPDATES": patchDetails.agentUpdates,
-            "MAP UPDATES": patchDetails.mapUpdates,
-            "BUG FIXES": patchDetails.bugFixes
+        let currentSection = null;
+        let contentBuffer = [];
+        let inBugFixes = false;
+
+        const flushContentBuffer = () => {
+            if (currentSection && contentBuffer.length > 0) {
+                patchDetails[currentSection].push(contentBuffer.join(' '));
+                contentBuffer = [];
+            }
         };
 
-        $('.sc-4225abdc-0').each((index, element) => {
-            const sectionTitle = $(element).find('h1, h2').first().text().trim().toUpperCase();
-            if (roleSections[sectionTitle]) {
-                const content = $(element).html().trim();
-                if (content) {
-                    roleSections[sectionTitle].push(content);
-                }
+        $('*').each((index, element) => {
+            const text = $(element).text().trim().toUpperCase();
+
+            if (text.includes('AGENT UPDATES')) {
+                flushContentBuffer();
+                currentSection = 'agentUpdates';
+                inBugFixes = false;
+            } else if (text.includes('MAP UPDATES')) {
+                flushContentBuffer();
+                currentSection = 'mapUpdates';
+                inBugFixes = false;
+            } else if (text.includes('BUG FIXES')) {
+                flushContentBuffer();
+                currentSection = 'bugFixes';
+                inBugFixes = true;
+            } else if (inBugFixes && (text.includes('KNOWN ISSUES') || text.includes('RELATED ARTICLES'))) {
+                flushContentBuffer();
+                currentSection = null;
+                inBugFixes = false;
+                if (text.includes('RELATED ARTICLES')) return false;
+            } else if (!inBugFixes && text.includes('CONSOLE')) {
+                flushContentBuffer();
+                currentSection = null;
+            } else if (currentSection && $(element).is('p')) {
+                contentBuffer.push($.html(element));
+            } else if (inBugFixes) {
+                contentBuffer.push($.html(element));
             }
         });
+
+        flushContentBuffer();
 
         const patch = await prisma.patchnotes_val.findFirst({
             where: {
@@ -45,70 +75,22 @@ const getPatchNotesDetails_VAL = async (url, version) => {
             }
         });
 
-        let patchId;
         if (!patch) {
-            const newPatch = await prisma.patchnotes_val.create({
+            await prisma.patchnotes_val.create({
                 data: {
-                    text: `valorant-patch-notes-${version}`
+                    text: `valorant-patch-notes-${version}`,
+                    details: patchDetails
                 }
             });
-            patchId = newPatch.id;
         } else {
-            patchId = patch.id;
-        }
-
-        for (const agentUpdate of patchDetails.agentUpdates) {
-            const existingAgentUpdate = await prisma.agent.findFirst({
+            await prisma.patchnotes_val.update({
                 where: {
-                    patchId: patchId,
-                    text: agentUpdate
+                    id: patch.id
+                },
+                data: {
+                    details: patchDetails
                 }
             });
-
-            if (!existingAgentUpdate) {
-                await prisma.agent.create({
-                    data: {
-                        patchId: patchId,
-                        text: agentUpdate
-                    }
-                });
-            }
-        }
-
-        for (const mapUpdate of patchDetails.mapUpdates) {
-            const existingMapUpdate = await prisma.valMap.findFirst({
-                where: {
-                    patchId: patchId,
-                    text: mapUpdate
-                }
-            });
-
-            if (!existingMapUpdate) {
-                await prisma.valMap.create({
-                    data: {
-                        patchId: patchId,
-                        text: mapUpdate
-                    }
-                });
-            }
-        }
-
-        for (const bugFix of patchDetails.bugFixes) {
-            const existingBugFix = await prisma.valBug.findFirst({
-                where: {
-                    patchId: patchId,
-                    text: bugFix
-                }
-            });
-
-            if (!existingBugFix) {
-                await prisma.valBug.create({
-                    data: {
-                        patchId: patchId,
-                        text: bugFix
-                    }
-                });
-            }
         }
 
         return patchDetails;

@@ -33,15 +33,58 @@ const getPatchNotesDetails_OW = async (url, year, month) => {
             "BUG FIXES": patchDetails.bugFixes
         };
 
-        $('.PatchNotes-section').each((index, element) => {
+        const parseHeroUpdate = (element) => {
+            const heroUpdate = {};
+            heroUpdate.title = $(element).find('.PatchNotesHeroUpdate-name').text().trim();
+            heroUpdate.generalUpdates = [];
+            $(element).find('.PatchNotesHeroUpdate-generalUpdates ul li').each((_, li) => {
+                heroUpdate.generalUpdates.push($(li).text().trim());
+            });
+
+            heroUpdate.abilityUpdates = [];
+            $(element).find('.PatchNotesAbilityUpdate').each((_, ability) => {
+                const abilityUpdate = {
+                    name: $(ability).find('.PatchNotesAbilityUpdate-name').text().trim(),
+                    content: []
+                };
+                $(ability).find('.PatchNotesAbilityUpdate-detailList ul li').each((_, li) => {
+                    abilityUpdate.content.push($(li).text().trim());
+                });
+                heroUpdate.abilityUpdates.push(abilityUpdate);
+            });
+
+            return heroUpdate;
+        };
+
+        $('.PatchNotes-section-hero_update').each((index, element) => {
             const sectionTitle = $(element).find('.PatchNotes-sectionTitle').text().trim().toUpperCase();
             if (roleSections[sectionTitle]) {
-                $(element).find('.PatchNotes-sectionTitle').remove();
-                const content = $(element).html().trim();
-                if (content) {
-                    roleSections[sectionTitle].push(content);
-                }
+                $(element).find('.PatchNotesHeroUpdate').each((_, heroUpdateElement) => {
+                    roleSections[sectionTitle].push(parseHeroUpdate(heroUpdateElement));
+                });
             }
+        });
+
+        $('.PatchNotes-section-map_update .PatchNotesMapUpdate').each((index, element) => {
+            const mapUpdate = {
+                name: $(element).find('.PatchNotesMapUpdate-name').text().trim(),
+                content: []
+            };
+            $(element).find('.PatchNotesMapUpdate-generalUpdates ul li').each((_, li) => {
+                mapUpdate.content.push($(li).text().trim());
+            });
+            patchDetails.mapUpdates.push(mapUpdate);
+        });
+
+        $('.PatchNotes-section-generic_update').each((index, element) => {
+            const bugFix = {
+                name: $(element).find('.PatchNotesGeneralUpdate-title').text().trim(),
+                content: []
+            };
+            $(element).find('.PatchNotesGeneralUpdate-description ul li').each((_, li) => {
+                bugFix.content.push($(li).text().trim());
+            });
+            patchDetails.bugFixes.push(bugFix);
         });
 
         const patch = await prisma.patchnotes_ow.findFirst({
@@ -50,106 +93,22 @@ const getPatchNotesDetails_OW = async (url, year, month) => {
             }
         });
 
-        let patchId;
         if (!patch) {
-            const newPatch = await prisma.patchnotes_ow.create({
+            await prisma.patchnotes_ow.create({
                 data: {
-                    text: `${year}/${month}`
+                    text: `${year}/${month}`,
+                    details: patchDetails
                 }
             });
-            patchId = newPatch.id;
         } else {
-            patchId = patch.id;
-        }
-
-        for (const tank of patchDetails.tank) {
-            const existingTank = await prisma.tank.findFirst({
+            await prisma.patchnotes_ow.update({
                 where: {
-                    patchId: patchId,
-                    text: tank
+                    id: patch.id
+                },
+                data: {
+                    details: patchDetails
                 }
             });
-
-            if (!existingTank) {
-                await prisma.tank.create({
-                    data: {
-                        patchId: patchId,
-                        text: tank
-                    }
-                });
-            }
-        }
-
-        for (const damage of patchDetails.damage) {
-            const existingDamage = await prisma.damage.findFirst({
-                where: {
-                    patchId: patchId,
-                    text: damage
-                }
-            });
-
-            if (!existingDamage) {
-                await prisma.damage.create({
-                    data: {
-                        patchId: patchId,
-                        text: damage
-                    }
-                });
-            }
-        }
-
-        for (const support of patchDetails.support) {
-            const existingSupport = await prisma.support.findFirst({
-                where: {
-                    patchId: patchId,
-                    text: support
-                }
-            });
-
-            if (!existingSupport) {
-                await prisma.support.create({
-                    data: {
-                        patchId: patchId,
-                        text: support
-                    }
-                });
-            }
-        }
-
-        for (const mapUpdate of patchDetails.mapUpdates) {
-            const existingMapUpdate = await prisma.owMap.findFirst({
-                where: {
-                    patchId: patchId,
-                    text: mapUpdate
-                }
-            });
-
-            if (!existingMapUpdate) {
-                await prisma.owMap.create({
-                    data: {
-                        patchId: patchId,
-                        text: mapUpdate
-                    }
-                });
-            }
-        }
-
-        for (const bugFix of patchDetails.bugFixes) {
-            const existingBugFix = await prisma.owBug.findFirst({
-                where: {
-                    patchId: patchId,
-                    text: bugFix
-                }
-            });
-
-            if (!existingBugFix) {
-                await prisma.owBug.create({
-                    data: {
-                        patchId: patchId,
-                        text: bugFix
-                    }
-                });
-            }
         }
 
         return patchDetails;

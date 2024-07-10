@@ -9,12 +9,14 @@ const Patchnotes = ({ game }) => {
   const { user } = useContext(UserContext);
   const [patchnotes, setPatchnotes] = useState({
     id: null,
-    Tanks: [],
-    Damages: [],
-    Supports: [],
-    Agents: [],
-    Maps: [],
-    Bugs: [],
+    details: {
+      tank: [],
+      damage: [],
+      support: [],
+      agentUpdates: [],
+      mapUpdates: [],
+      bugFixes: [],
+    },
     comments: [],
   });
   const [error, setError] = useState(null);
@@ -37,27 +39,30 @@ const Patchnotes = ({ game }) => {
         }
         const data = await response.json();
 
-        if (data.length > 0) {
-          const patchData = data[0];
+        if (data) {
           setPatchnotes({
-            id: patchData.id || null,
-            Tanks: patchData.Tanks || [],
-            Damages: patchData.Damages || [],
-            Supports: patchData.Supports || [],
-            Agents: patchData.Agents || [],
-            Maps: patchData.Maps || [],
-            Bugs: patchData.Bugs || [],
-            comments: patchData.comments.map(comment => ({ ...comment, replies: comment.replies || [] })),
+            id: data.id || null,
+            details: data.details || {
+              tank: [],
+              damage: [],
+              support: [],
+              agentUpdates: [],
+              mapUpdates: [],
+              bugFixes: [],
+            },
+            comments: data.comments ? data.comments.map(comment => ({ ...comment, replies: comment.replies || [] })) : [],
           });
         } else {
           setPatchnotes({
             id: null,
-            Tanks: [],
-            Damages: [],
-            Supports: [],
-            Agents: [],
-            Maps: [],
-            Bugs: [],
+            details: {
+              tank: [],
+              damage: [],
+              support: [],
+              agentUpdates: [],
+              mapUpdates: [],
+              bugFixes: [],
+            },
             comments: [],
           });
         }
@@ -202,27 +207,66 @@ const Patchnotes = ({ game }) => {
     setModalOpen(true);
   };
 
-  const renderPatchNotes = (category, notes) => (
+  const renderCategories = (category, notes) => (
     <>
       <h2>{category} Updates</h2>
-      {notes.length > 0 ? (
-        notes.map((content, index) => (
-          <div key={index} dangerouslySetInnerHTML={{ __html: content.text }} />
-        ))
-      ) : (
-        <p>No {category.toLowerCase()} updates found.</p>
-      )}
+      {Array.isArray(notes) && notes.length > 0 && notes.map((data, index) => {
+        if (!data.title && !data.name && !data.content && (!data.generalUpdates || data.generalUpdates.length === 0) && (!data.abilityUpdates || data.abilityUpdates.length === 0)) {
+          return null;
+        }
+        return (
+          <div key={index}>
+            {data.title && <h3>{data.title}</h3>}
+            {data.name && <h3>{data.name}</h3>}
+            {data.generalUpdates && data.generalUpdates.length > 0 && (
+              <div>
+                <h4>General Updates:</h4>
+                <ul>
+                  {data.generalUpdates.map((update, idx) => (
+                    <li key={idx}>{update}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {data.abilityUpdates && data.abilityUpdates.length > 0 && (
+              <div>
+                <h4>Ability Updates:</h4>
+                {data.abilityUpdates.map((ability, idx) => (
+                  <div key={idx}>
+                    <h5>{ability.name}</h5>
+                    <ul>
+                      {ability.content.map((detail, i) => (
+                        <li key={i}>{detail}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+            {data.content && data.content.length > 0 && (
+              <div>
+                <h4>Content Updates:</h4>
+                <ul>
+                  {data.content.map((content, idx) => (
+                    <li key={idx}>{content}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </>
   );
 
   const renderReplies = (replies) => {
-    return replies.map((reply) => (
+    return Array.isArray(replies) ? replies.map((reply) => (
       <div key={reply.id} className='reply'>
         <p>{reply.user.username}: @{reply.replyTo.username} {reply.message}</p>
         {renderReplies(reply.replies || [])}
         <button className='reply-button' onClick={() => openReplyModal(reply.commentId, reply.user.id, reply.id)}>Reply</button>
       </div>
-    ));
+    )) : null;
   };
 
   return (
@@ -231,17 +275,17 @@ const Patchnotes = ({ game }) => {
       <div className='patches'>
         {game === 'overwatch' ? (
           <>
-            {renderPatchNotes('Tank', patchnotes.Tanks)}
-            {renderPatchNotes('Damage', patchnotes.Damages)}
-            {renderPatchNotes('Support', patchnotes.Supports)}
-            {renderPatchNotes('Map', patchnotes.Maps)}
-            {renderPatchNotes('Bug', patchnotes.Bugs)}
+            {renderCategories('Tank', patchnotes.details.tank)}
+            {renderCategories('Damage', patchnotes.details.damage)}
+            {renderCategories('Support', patchnotes.details.support)}
+            {renderCategories('Map', patchnotes.details.mapUpdates)}
+            {renderCategories('Bug', patchnotes.details.bugFixes)}
           </>
         ) : (
           <>
-            {renderPatchNotes('Agent', patchnotes.Agents)}
-            {renderPatchNotes('Map', patchnotes.Maps)}
-            {renderPatchNotes('Bug', patchnotes.Bugs)}
+            {renderCategories('Agent', patchnotes.details.agentUpdates)}
+            {renderCategories('Map', patchnotes.details.mapUpdates)}
+            {renderCategories('Bug', patchnotes.details.bugFixes)}
           </>
         )}
       </div>

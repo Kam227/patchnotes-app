@@ -31,77 +31,15 @@ model User {
 model Patchnotes_ow {
   id Int @id @default(autoincrement())
   text String
-  Tanks Tank[]
-  Damages Damage[]
-  Supports Support[]
-  Maps OwMap[]
-  Bugs OwBug[]
+  details Json
   comments Comment_ow[]
-}
-
-model Tank {
-  id Int @id @default(autoincrement())
-  patchId Int
-  text String
-  patchnote Patchnotes_ow @relation(fields: [patchId], references: [id])
-}
-
-model Damage {
-  id Int @id @default(autoincrement())
-  patchId Int
-  text String
-  patchnote Patchnotes_ow @relation(fields: [patchId], references: [id])
-}
-
-model Support {
-  id Int @id @default(autoincrement())
-  patchId Int
-  text String
-  patchnote Patchnotes_ow @relation(fields: [patchId], references: [id])
-}
-
-model OwMap {
-  id Int @id @default(autoincrement())
-  patchId Int
-  text String
-  patchnote Patchnotes_ow @relation(fields: [patchId], references: [id])
-}
-
-model OwBug {
-  id Int @id @default(autoincrement())
-  patchId Int
-  text String
-  patchnote Patchnotes_ow @relation(fields: [patchId], references: [id])
 }
 
 model Patchnotes_val {
   id Int @id @default(autoincrement())
   text String
-  Agents Agent[]
-  Maps ValMap[]
-  Bugs ValBug[]
+  details Json
   comments Comment_val[]
-}
-
-model Agent {
-  id Int @id @default(autoincrement())
-  patchId Int
-  text String
-  patchnote Patchnotes_val @relation(fields: [patchId], references: [id])
-}
-
-model ValMap {
-  id Int @id @default(autoincrement())
-  patchId Int
-  text String
-  patchnote Patchnotes_val @relation(fields: [patchId], references: [id])
-}
-
-model ValBug {
-  id Int @id @default(autoincrement())
-  patchId Int
-  text String
-  patchnote Patchnotes_val @relation(fields: [patchId], references: [id])
 }
 
 model Comment_ow {
@@ -109,11 +47,11 @@ model Comment_ow {
   message String
   voteCount Int @default(0)
   votes_ow Vote_ow[]
-  patchnotes_ow Patchnotes_ow @relation(fields:[patchId], references:[id])
+  patchnotes_ow Patchnotes_ow @relation(fields: [patchId], references: [id])
   patchId Int
-  user User @relation(fields:[userId], references:[id])
+  user User @relation(fields: [userId], references: [id])
   userId Int
-  replies       Reply_ow[]
+  replies Reply_ow[]
 }
 
 model Comment_val {
@@ -121,26 +59,26 @@ model Comment_val {
   message String
   voteCount Int @default(0)
   votes_val Vote_val[]
-  patchnotes_val Patchnotes_val @relation(fields:[patchId], references:[id])
+  patchnotes_val Patchnotes_val @relation(fields: [patchId], references: [id])
   patchId Int
-  user User @relation(fields:[userId], references:[id])
+  user User @relation(fields: [userId], references: [id])
   userId Int
-  replies       Reply_val[]
+  replies Reply_val[]
 }
 
 model Vote_ow {
   id Int @id @default(autoincrement())
-  user User @relation(fields:[userId], references:[id])
+  user User @relation(fields: [userId], references: [id])
   userId Int
-  comment Comment_ow @relation(fields:[commentId], references:[id])
+  comment Comment_ow @relation(fields: [commentId], references: [id])
   commentId Int
 }
 
 model Vote_val {
   id Int @id @default(autoincrement())
-  user User @relation(fields:[userId], references:[id])
+  user User @relation(fields: [userId], references: [id])
   userId Int
-  comment Comment_val @relation(fields:[commentId], references:[id])
+  comment Comment_val @relation(fields: [commentId], references: [id])
   commentId Int
 }
 
@@ -169,5 +107,5 @@ model Reply_val {
   parentReply Reply_val? @relation("ParentReply", fields: [parentReplyId], references: [id])
   replyToId Int
   replyTo User @relation(name: "UserRepliedToVal", fields: [replyToId], references: [id])
-  replies Reply_val[]  @relation("ParentReply")
+  replies Reply_val[] @relation("ParentReply")
 }

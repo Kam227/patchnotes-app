@@ -93,39 +93,43 @@ app.get('/patchnotes/valorant', async (req, res) => {
 app.get('/patchnotes/overwatch/:year/:month', async (req, res) => {
     const { year, month } = req.params;
     try {
-      const patchDetails = await prisma.patchnotes_ow.findMany({
-        where: { text: `${year}/${month}` },
-        include: {
-          Tanks: true,
-          Damages: true,
-          Supports: true,
-          Maps: true,
-          Bugs: true,
-          comments: {
+        const patchDetails = await prisma.patchnotes_ow.findFirst({
+            where: { text: `${year}/${month}` },
             include: {
-              user: true,
-              replies: {
-                include: { user: true, replyTo: true }
-              }
+                comments: {
+                    include: {
+                        user: true,
+                        replies: {
+                            include: { user: true, replyTo: true }
+                        }
+                    }
+                }
             }
-          }
-        },
-      });
-      res.json(patchDetails);
+        });
+        res.json(patchDetails || {});
     } catch (error) {
-      console.error('Error in /patchnotes/overwatch/:year/:month route:', error.message);
-      res.status(500).send({ error: 'Error while fetching patch notes details' });
+        console.error('Error in /patchnotes/overwatch/:year/:month route:', error.message);
+        res.status(500).send({ error: 'Error while fetching patch notes details' });
     }
 });
 
 app.get('/patchnotes/valorant/:version', async (req, res) => {
     const { version } = req.params;
     try {
-        const patchDetails = await prisma.patchnotes_val.findMany({
+        const patchDetails = await prisma.patchnotes_val.findFirst({
             where: { text: `valorant-patch-notes-${version}` },
-            include: { Agents: true, Maps: true, Bugs: true, comments: { include: { user: true }, }, },
+            include: {
+                comments: {
+                    include: {
+                        user: true,
+                        replies: {
+                            include: { user: true, replyTo: true }
+                        }
+                    }
+                }
+            }
         });
-        res.json(patchDetails);
+        res.json(patchDetails || {});
     } catch (error) {
         console.error('Error in /patchnotes/valorant/:version route:', error.message);
         res.status(500).send({ error: 'Error while fetching patch notes details' });

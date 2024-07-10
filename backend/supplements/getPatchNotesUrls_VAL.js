@@ -42,7 +42,10 @@ const getPatchNotesUrls_VAL = async () => {
 
             if (!existingPatchNote) {
                 await prisma.patchnotes_val.create({
-                    data: { text: patchNote }
+                    data: {
+                        text: patchNote,
+                        details: {}
+                    }
                 });
             }
         }
