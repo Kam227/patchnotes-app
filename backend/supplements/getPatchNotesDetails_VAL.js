@@ -3,6 +3,158 @@ const cheerio = require('cheerio');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+const stopCategories = [
+    'CONSOLE',
+    'COMPETITIVE UPDATES',
+    'GAMEPLAY SYSTEMS UPDATES',
+    'PLAYER BEHAVIOR UPDATES',
+    'PREMIER UPDATES',
+    'BUG FIXES',
+    'PERFORMANCE UPDATES',
+    'SOCIAL SYSTEMS UPDATES',
+    'STORE UPDATES',
+    'KNOWN ISSUES',
+    'ESPORTS FEATURES'
+];
+
+const getAgentUpdates = ($) => {
+    const patchDetails = {
+        agentUpdates: []
+    };
+
+    let currentAgent = null;
+    let abilityUpdates = new Set();
+
+    const flushContentBuffer = () => {
+        if (currentAgent && abilityUpdates.size > 0) {
+            patchDetails.agentUpdates.push({
+                title: currentAgent,
+                abilityUpdates: Array.from(abilityUpdates)
+            });
+            currentAgent = null;
+            abilityUpdates.clear();
+        }
+    };
+
+    let stopScraping = false;
+
+    $('*').each((index, element) => {
+        if (stopScraping) return false;
+
+        const tag = $(element).prop('tagName');
+        const text = $(element).text().trim().toUpperCase();
+
+        if (tag === 'H1' && text.includes('AGENT UPDATES')) {
+            flushContentBuffer();
+            currentAgent = 'AGENT UPDATES';
+        } else if (stopCategories.includes(text)) {
+            flushContentBuffer();
+            stopScraping = true;
+        } else if (currentAgent && tag === 'H2') {
+            flushContentBuffer();
+            currentAgent = $(element).text().trim();
+        } else if (currentAgent && (tag === 'LI' || tag === 'P' || tag === 'STRONG') && text) {
+            let cleanText = text.replace(/&nbsp;|&gt;/g, '').trim();
+            if (!Array.from(abilityUpdates).some(update => update.includes(cleanText) || cleanText.includes(update))) {
+                abilityUpdates.add(cleanText);
+            }
+        }
+    });
+
+    flushContentBuffer();
+    return patchDetails;
+};
+
+const getMapUpdates = ($) => {
+    const patchDetails = {
+        mapUpdates: []
+    };
+
+    let currentMapUpdate = null;
+    let abilityUpdates = new Set();
+
+    const flushContentBuffer = () => {
+        if (currentMapUpdate && abilityUpdates.size > 0) {
+            patchDetails.mapUpdates.push({
+                title: currentMapUpdate,
+                abilityUpdates: Array.from(abilityUpdates)
+            });
+            currentMapUpdate = null;
+            abilityUpdates.clear();
+        }
+    };
+
+    let scrapingMapUpdates = false;
+
+    $('*').each((index, element) => {
+        const tag = $(element).prop('tagName');
+        const text = $(element).text().trim().toUpperCase();
+
+        if (tag === 'H1' && text.includes('MAP UPDATES')) {
+            flushContentBuffer();
+            scrapingMapUpdates = true;
+        } else if (stopCategories.includes(text)) {
+            flushContentBuffer();
+            scrapingMapUpdates = false;
+        } else if (scrapingMapUpdates && tag === 'H2') {
+            flushContentBuffer();
+            currentMapUpdate = $(element).text().trim();
+        } else if (scrapingMapUpdates && (tag === 'LI' || tag === 'P') && text) {
+            let cleanText = $(element).text().replace(/&nbsp;|&gt;/g, '').trim();
+            if (!Array.from(abilityUpdates).some(update => update.includes(cleanText) || cleanText.includes(update))) {
+                abilityUpdates.add(cleanText);
+            }
+        }
+    });
+
+    flushContentBuffer();
+    return patchDetails;
+};
+
+const getBugFixes = ($) => {
+    const patchDetails = {
+        bugFixes: []
+    };
+
+    let currentCategory = null;
+    let abilityUpdates = new Set();
+
+    const flushContentBuffer = () => {
+        if (currentCategory && abilityUpdates.size > 0) {
+            patchDetails.bugFixes.push({
+                title: currentCategory,
+                abilityUpdates: Array.from(abilityUpdates)
+            });
+            currentCategory = null;
+            abilityUpdates.clear();
+        }
+    };
+
+    let scrapingBugFixes = false;
+
+    $('*').each((index, element) => {
+        const tag = $(element).prop('tagName');
+        let text = $(element).text().trim();
+
+        if (tag === 'H1' && text.toUpperCase().includes('BUG FIXES')) {
+            flushContentBuffer();
+            scrapingBugFixes = true;
+        } else if (scrapingBugFixes && text.toUpperCase() === 'RECENT ARTICLES') {
+            flushContentBuffer();
+            scrapingBugFixes = false;
+        } else if (scrapingBugFixes && (tag === 'H2' || tag === 'STRONG')) {
+            flushContentBuffer();
+            currentCategory = $(element).text().trim();
+        } else if (scrapingBugFixes && (tag === 'LI' || tag === 'P') && text) {
+            text = text.replace(/&nbsp;|&gt;/g, '').trim();
+            abilityUpdates.add(text.endsWith('.') ? text : text + '.');
+        }
+    });
+
+    flushContentBuffer();
+    return patchDetails;
+};
+
 const getPatchNotesDetails_VAL = async (url, version) => {
     const uri = `${url}valorant-patch-notes-${version}/`;
 
@@ -20,54 +172,15 @@ const getPatchNotesDetails_VAL = async (url, version) => {
         $('head, meta, .metadata, .header').remove();
         $('[data-testid="article-card-carousel"]').remove();
 
+        const agentUpdates = getAgentUpdates($);
+        const mapUpdates = getMapUpdates($);
+        const bugFixes = getBugFixes($);
+
         const patchDetails = {
-            agentUpdates: [],
-            mapUpdates: [],
-            bugFixes: []
+            ...agentUpdates,
+            ...mapUpdates,
+            ...bugFixes
         };
-
-        let currentSection = null;
-        let contentBuffer = [];
-        let inBugFixes = false;
-
-        const flushContentBuffer = () => {
-            if (currentSection && contentBuffer.length > 0) {
-                patchDetails[currentSection].push(contentBuffer.join(' '));
-                contentBuffer = [];
-            }
-        };
-
-        $('*').each((index, element) => {
-            const text = $(element).text().trim().toUpperCase();
-
-            if (text.includes('AGENT UPDATES')) {
-                flushContentBuffer();
-                currentSection = 'agentUpdates';
-                inBugFixes = false;
-            } else if (text.includes('MAP UPDATES')) {
-                flushContentBuffer();
-                currentSection = 'mapUpdates';
-                inBugFixes = false;
-            } else if (text.includes('BUG FIXES')) {
-                flushContentBuffer();
-                currentSection = 'bugFixes';
-                inBugFixes = true;
-            } else if (inBugFixes && (text.includes('KNOWN ISSUES') || text.includes('RELATED ARTICLES'))) {
-                flushContentBuffer();
-                currentSection = null;
-                inBugFixes = false;
-                if (text.includes('RELATED ARTICLES')) return false;
-            } else if (!inBugFixes && text.includes('CONSOLE')) {
-                flushContentBuffer();
-                currentSection = null;
-            } else if (currentSection && $(element).is('p')) {
-                contentBuffer.push($.html(element));
-            } else if (inBugFixes) {
-                contentBuffer.push($.html(element));
-            }
-        });
-
-        flushContentBuffer();
 
         const patch = await prisma.patchnotes_val.findFirst({
             where: {
@@ -98,6 +211,6 @@ const getPatchNotesDetails_VAL = async (url, version) => {
         console.error('Error while fetching patch notes details:', error.message);
         throw new Error('Failed to fetch patch notes details');
     }
-}
+};
 
 module.exports = { getPatchNotesDetails_VAL };
