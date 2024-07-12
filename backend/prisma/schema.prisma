@@ -109,3 +109,9 @@ model Reply_lol {
   replyTo User @relation(name: "UserRepliedToLoL", fields: [replyToId], references: [id])
   replies Reply_lol[] @relation("ParentReply")
 }
+
+model Association {
+  id Int @id @default(autoincrement())
+  nerf Json
+  buff Json
+}
