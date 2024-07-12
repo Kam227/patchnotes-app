@@ -6,12 +6,12 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const urls_OW = require('./supplements/getPatchNotesUrls_OW');
 const details_OW = require('./supplements/getPatchNotesDetails_OW');
-const urls_VAL = require('./supplements/getPatchNotesUrls_VAL');
-const details_VAL = require('./supplements/getPatchNotesDetails_VAL');
+const urls_LOL = require('./supplements/getPatchNotesUrls_LOL');
+const details_LOL = require('./supplements/getPatchNotesDetails_LOL');
 const userRoutes = require('./routes/users');
 
 const OVERWATCH_URL = 'https://overwatch.blizzard.com/en-us/news/patch-notes/';
-const VALORANT_URL = 'https://playvalorant.com/en-us/news/game-updates/';
+const LEAGUE_OF_LEGENDS_URL = 'https://www.leagueoflegends.com/en-us/news/game-updates/';
 
 const app = express();
 
@@ -57,12 +57,12 @@ app.listen(PORT, async () => {
     }
 
     try {
-        const valUrls = await urls_VAL.getPatchNotesUrls_VAL();
-        for (const { version } of valUrls) {
-            await details_VAL.getPatchNotesDetails_VAL(VALORANT_URL, version);
+        const lolUrls = await urls_LOL.getPatchNotesUrls_LOL();
+        for (const { version, prefix } of lolUrls) {
+            await details_LOL.getPatchNotesDetails_LOL(LEAGUE_OF_LEGENDS_URL, version, prefix);
         }
     } catch (error) {
-        console.error('Error while scraping and storing Valorant patch notes:', error.message);
+        console.error('Error while scraping and storing League of Legends patch notes:', error.message);
     }
 });
 
@@ -80,12 +80,12 @@ app.get('/patchnotes/overwatch', async (req, res) => {
     }
 });
 
-app.get('/patchnotes/valorant', async (req, res) => {
+app.get('/patchnotes/league-of-legends', async (req, res) => {
     try {
-        const patchNotes = await prisma.patchnotes_val.findMany();
+        const patchNotes = await prisma.patchnotes_lol.findMany();
         res.json(patchNotes);
     } catch (error) {
-        console.error('Error in /patchnotes/valorant route:', error.message);
+        console.error('Error in /patchnotes/league-of-legends route:', error.message);
         res.status(500).send({ error: 'Error while fetching patch notes' });
     }
 });
@@ -113,11 +113,16 @@ app.get('/patchnotes/overwatch/:year/:month', async (req, res) => {
     }
 });
 
-app.get('/patchnotes/valorant/:version', async (req, res) => {
+app.get('/patchnotes/league-of-legends/:version', async (req, res) => {
     const { version } = req.params;
     try {
-        const patchDetails = await prisma.patchnotes_val.findFirst({
-            where: { text: `valorant-patch-notes-${version}` },
+        const patchDetails = await prisma.patchnotes_lol.findFirst({
+            where: {
+                OR: [
+                    { text: `lol-patch-${version}-notes` },
+                    { text: `patch-${version}-notes` }
+                ]
+            },
             include: {
                 comments: {
                     include: {
@@ -131,7 +136,7 @@ app.get('/patchnotes/valorant/:version', async (req, res) => {
         });
         res.json(patchDetails || {});
     } catch (error) {
-        console.error('Error in /patchnotes/valorant/:version route:', error.message);
+        console.error('Error in /patchnotes/league-of-legends/:version route:', error.message);
         res.status(500).send({ error: 'Error while fetching patch notes details' });
     }
 });
@@ -153,10 +158,10 @@ app.post('/patchnotes/overwatch/:year/:month/comments', async (req, res) => {
     }
 });
 
-app.post('/patchnotes/valorant/:version/comments', async (req, res) => {
+app.post('/patchnotes/league-of-legends/:version/comments', async (req, res) => {
     const { message, patchId, userId } = req.body;
     try {
-        const newComment = await prisma.comment_val.create({
+        const newComment = await prisma.comment_lol.create({
             data: {
                 message,
                 patchId,
@@ -183,10 +188,10 @@ app.delete('/patchnotes/overwatch/:year/:month/:commentId', cors(), async (req, 
     }
 });
 
-app.delete('/patchnotes/valorant/:version/:commentId', cors(), async (req, res) => {
+app.delete('/patchnotes/league-of-legends/:version/:commentId', cors(), async (req, res) => {
     const { commentId } = req.params;
     try {
-        const deletedComment = await prisma.comment_ow.delete({
+        const deletedComment = await prisma.comment_lol.delete({
             where: { id: parseInt(commentId, 10) },
         });
         res.json(deletedComment)
@@ -212,10 +217,10 @@ app.put('/patchnotes/overwatch/:year/:month/:commentId/vote', cors(), async (req
     }
 });
 
-app.put('/patchnotes/valorant/:version/:commentId/vote', cors(), async (req, res) => {
+app.put('/patchnotes/league-of-legends/:version/:commentId/vote', cors(), async (req, res) => {
     const { commentId } = req.params;
     try {
-        const updatedVote = await prisma.comment_val.update({
+        const updatedVote = await prisma.comment_lol.update({
             where: { id: parseInt( commentId, 10) },
             data: {
                 voteCount: { increment: 1 },
@@ -228,39 +233,38 @@ app.put('/patchnotes/valorant/:version/:commentId/vote', cors(), async (req, res
     }
 });
 
-
 // REPLIES
 app.post('/patchnotes/overwatch/:year/:month/comments/:commentId/replies', async (req, res) => {
     const { message, userId, replyToId, parentReplyId } = req.body;
     const { commentId } = req.params;
     try {
-      const newReply = await prisma.reply_ow.create({
-        data: {
-          message,
-          user: { connect: { id: userId } },
-          comment: { connect: { id: parseInt(commentId, 10) } },
-          replyTo: { connect: { id: replyToId } },
-          parentReply: parentReplyId ? { connect: { id: parentReplyId } } : undefined
-        },
-        include: { user: true, replyTo: true },
-      });
-      res.json(newReply);
+        const newReply = await prisma.reply_ow.create({
+            data: {
+                message,
+                user: { connect: { id: userId } },
+                comment: { connect: { id: parseInt(commentId, 10) } },
+                replyTo: { connect: { id: replyToId } },
+                parentReply: parentReplyId ? { connect: { id: parentReplyId } } : undefined
+            },
+            include: { user: true, replyTo: true },
+        });
+        res.json(newReply);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Failed to create reply' });
+        console.error(error);
+        res.status(500).json({ error: 'Failed to create reply' });
     }
 });
 
 app.get('/patchnotes/overwatch/:year/:month/comments/:commentId/replies', async (req, res) => {
     const { commentId } = req.params;
     try {
-      const replies = await prisma.reply_ow.findMany({
-        where: { commentId: parseInt(commentId, 10) },
-        include: { user: true, replyTo: true, replies: true },
-      });
-      res.json(replies);
+        const replies = await prisma.reply_ow.findMany({
+            where: { commentId: parseInt(commentId, 10) },
+            include: { user: true, replyTo: true, replies: true },
+        });
+        res.json(replies);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Failed to fetch replies' });
+        console.error(error);
+        res.status(500).json({ error: 'Failed to fetch replies' });
     }
 });

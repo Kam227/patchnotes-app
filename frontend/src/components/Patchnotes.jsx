@@ -13,53 +13,16 @@ const Patchnotes = ({ game }) => {
       tank: [],
       damage: [],
       support: [],
-      agentUpdates: [],
-      mapUpdates: [],
+      items: [],
+      champions: [],
       bugFixes: [],
+      mapUpdates: [],
     },
     comments: [],
   });
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentReply, setCurrentReply] = useState({ message: '', replyToId: null, commentId: null, parentReplyId: null });
-  const [filter, setFilter] = useState('all');
-
-  const keywords = {
-    "projectile size": { nerf: ["reduced", "smaller"], buff: ["increased", "larger"] },
-    "damage": { nerf: ["decreased"], buff: ["increased"] },
-    "self-damage": { nerf: ["increased"], buff: ["reduced"] },
-    "health": { nerf: ["decreased"], buff: ["increased"] },
-    "armor": { nerf: ["decreased"], buff: ["increased"] },
-    "shields": { nerf: ["decreased"], buff: ["increased"] },
-    "radius": { nerf: ["decreased", "reduced"], buff: ["increased"] },
-    "width": { nerf: ["decreased"], buff: ["increased"] },
-    "height": { nerf: ["decreased", "reduced"], buff: ["increased"] },
-    "cooldown": { nerf: ["increased"], buff: ["decreased"] },
-    "range": { nerf: ["reduced"], buff: ["increased"] },
-    "recovery": { nerf: ["increased"], buff: ["decreased"] },
-    "speed": { nerf: ["decreased"], buff: ["increased"] },
-    "knockback": { nerf: ["reduced", "decreased"], buff: ["increased"] },
-    "duration": { nerf: ["increased"], buff: ["decreased"] },
-    "cancel": { nerf: ["reduced"], buff: ["decreased", "increased"] },
-  };
-
-  const classifyUpdate = (text) => {
-    for (let keyword in keywords) {
-      if (text.toLowerCase().includes(keyword)) {
-        for (let nerf of keywords[keyword].nerf) {
-          if (text.toLowerCase().includes(nerf)) {
-            return 'nerf';
-          }
-        }
-        for (let buff of keywords[keyword].buff) {
-          if (text.toLowerCase().includes(buff)) {
-            return 'buff';
-          }
-        }
-      }
-    }
-    return 'neutral';
-  };
 
   useEffect(() => {
     const fetchPatchnotes = async () => {
@@ -68,7 +31,7 @@ const Patchnotes = ({ game }) => {
         if (game === 'overwatch') {
           url = `http://localhost:3000/patchnotes/overwatch/${year}/${month}`;
         } else {
-          url = `http://localhost:3000/patchnotes/valorant/${version}`;
+          url = `http://localhost:3000/patchnotes/league-of-legends/${version}`;
         }
 
         const response = await fetch(url);
@@ -84,9 +47,10 @@ const Patchnotes = ({ game }) => {
               tank: [],
               damage: [],
               support: [],
-              agentUpdates: [],
-              mapUpdates: [],
+              items: [],
+              champions: [],
               bugFixes: [],
+              mapUpdates: [],
             },
             comments: data.comments ? data.comments.map(comment => ({ ...comment, replies: comment.replies || [] })) : [],
           });
@@ -97,9 +61,10 @@ const Patchnotes = ({ game }) => {
               tank: [],
               damage: [],
               support: [],
-              agentUpdates: [],
-              mapUpdates: [],
+              items: [],
+              champions: [],
               bugFixes: [],
+              mapUpdates: [],
             },
             comments: [],
           });
@@ -119,7 +84,7 @@ const Patchnotes = ({ game }) => {
       if (game === 'overwatch') {
         url = `http://localhost:3000/patchnotes/overwatch/${year}/${month}/comments`;
       } else {
-        url = `http://localhost:3000/patchnotes/valorant/${version}/comments`;
+        url = `http://localhost:3000/patchnotes/league-of-legends/${version}/comments`;
       }
 
       const response = await fetch(url, {
@@ -153,7 +118,7 @@ const Patchnotes = ({ game }) => {
       if (game === 'overwatch') {
         url = `http://localhost:3000/patchnotes/overwatch/${year}/${month}/comments/${reply.commentId}/replies`;
       } else {
-        url = `http://localhost:3000/patchnotes/valorant/${version}/comments/${reply.commentId}/replies`;
+        url = `http://localhost:3000/patchnotes/league-of-legends/${version}/comments/${reply.commentId}/replies`;
       }
 
       const response = await fetch(url, {
@@ -189,7 +154,7 @@ const Patchnotes = ({ game }) => {
       if (game === 'overwatch') {
         url = `http://localhost:3000/patchnotes/overwatch/${year}/${month}/${commentId}`;
       } else {
-        url = `http://localhost:3000/patchnotes/valorant/${version}/${commentId}`;
+        url = `http://localhost:3000/patchnotes/league-of-legends/${version}/${commentId}`;
       }
 
       const response = await fetch(url, {
@@ -216,7 +181,7 @@ const Patchnotes = ({ game }) => {
       if (game === 'overwatch') {
         url = `http://localhost:3000/patchnotes/overwatch/${year}/${month}/${commentId}/vote`;
       } else {
-        url = `http://localhost:3000/patchnotes/valorant/${version}/${commentId}/vote`;
+        url = `http://localhost:3000/patchnotes/league-of-legends/${version}/${commentId}/vote`;
       }
       const response = await fetch(url, {
         method: 'PUT',
@@ -245,113 +210,46 @@ const Patchnotes = ({ game }) => {
     setModalOpen(true);
   };
 
-  const filterUpdates = (updates) => {
-    if (game !== 'overwatch') return updates;
-
-    return updates.map(update => {
-      const generalUpdates = update.generalUpdates?.map(generalUpdate => ({
-        text: generalUpdate,
-        classification: classifyUpdate(generalUpdate)
-      }));
-      const abilityUpdates = update.abilityUpdates?.map(abilityUpdate => ({
-        ...abilityUpdate,
-        content: abilityUpdate.content.map(content => ({
-          text: content,
-          classification: classifyUpdate(content)
-        }))
-      }));
-
-      return {
-        ...update,
-        generalUpdates: generalUpdates?.filter(update => filter === 'all' || update.classification === filter),
-        abilityUpdates: abilityUpdates?.map(abilityUpdate => ({
-          ...abilityUpdate,
-          content: abilityUpdate.content.filter(content => filter === 'all' || content.classification === filter)
-        })).filter(abilityUpdate => abilityUpdate.content.length > 0)
-      };
-    }).filter(update => update.generalUpdates?.length > 0 || update.abilityUpdates?.length > 0 || filter === 'all');
-  };
-
   const renderUpdates = (updates) => {
-    if (game === 'overwatch') {
-        return updates.map((update, index) => {
-            if (
-              (!update.title || update.title.trim() === '') &&
-              (!update.name || update.name.trim() === '') &&
-              (!update.content || update.content.length === 0) &&
-              (!update.generalUpdates || update.generalUpdates.length === 0) &&
-              (!update.abilityUpdates || update.abilityUpdates.length === 0)
-            ) {
-              return null;
-            }
-
-            return (
-              <div key={index}>
-                {update.title && update.title.trim() !== '' && <h3>{update.title}</h3>}
-                {update.name && update.name.trim() !== '' && <h3>{update.name}</h3>}
-                {update.generalUpdates && update.generalUpdates.length > 0 && (
-                  <div>
-                    <ul>
-                      {update.generalUpdates.map((item, idx) => (
-                        <li key={idx}>{item.text}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {update.abilityUpdates && update.abilityUpdates.length > 0 && (
-                  <div>
-                    {update.abilityUpdates.map((ability, idx) => (
-                      <div key={idx}>
-                        <h5>{ability.name}</h5>
-                        <ul>
-                          {ability.content?.map((detail, i) => (
-                            <li key={i}>{detail.text}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {update.content && update.content.length > 0 && (
-                  <div>
-                    <ul>
-                      {update.content.map((content, idx) => (
-                        <li key={idx}>{content}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+    return updates.map((update, index) => (
+      <div key={index}>
+        {update.title && <h3>{update.title}</h3>}
+        {update.generalUpdates && update.generalUpdates.length > 0 && (
+          <ul>
+            {update.generalUpdates.map((updateText, idx) => (
+              <li key={idx}>{updateText}</li>
+            ))}
+          </ul>
+        )}
+        {update.abilityUpdates && update.abilityUpdates.length > 0 && (
+          <div>
+            {update.abilityUpdates.map((ability, idx) => (
+              <div key={idx}>
+                <h4>{ability.name}</h4>
+                <ul>
+                  {ability.content.map((abilityText, idy) => (
+                    <li key={idy}>{abilityText}</li>
+                  ))}
+                </ul>
               </div>
-            );
-          });
-    } else {
-        return updates.map((update, index) => {
-            if (!update.title && (!update.abilityUpdates || update.abilityUpdates.length === 0)) {
-              return null;
-            }
-
-            return (
-              <div key={index}>
-                {update.title && <h3>{update.title}</h3>}
-                {update.abilityUpdates && update.abilityUpdates.length > 0 && (
-                  <div>
-                    <ul>
-                      {update.abilityUpdates.map((abilityUpdate, idx) => (
-                        <li key={idx}>{abilityUpdate}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            );
-          });
-    }
+            ))}
+          </div>
+        )}
+        {update.content && update.content.length > 0 && (
+          <ul>
+            {update.content.map((contentText, idx) => (
+              <li key={idx}>{contentText}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    ));
   };
 
   const renderCategories = (category, notes) => (
     <>
       <h2>{category} Updates</h2>
-      {Array.isArray(notes) && notes.length > 0 && renderUpdates(filterUpdates(notes))}
+      {Array.isArray(notes) && notes.length > 0 && renderUpdates(notes)}
     </>
   );
 
@@ -369,11 +267,6 @@ const Patchnotes = ({ game }) => {
     <div className='patchnotes'>
       <Navbar />
       <div className='patches'>
-        <div className="filter-buttons">
-          <button onClick={() => setFilter('all')}>All</button>
-          <button onClick={() => setFilter('buff')}>Buffs</button>
-          <button onClick={() => setFilter('nerf')}>Nerfs</button>
-        </div>
         {game === 'overwatch' ? (
           <>
             {renderCategories('Tank', patchnotes.details.tank)}
@@ -384,8 +277,8 @@ const Patchnotes = ({ game }) => {
           </>
         ) : (
           <>
-            {renderCategories('Agent', patchnotes.details.agentUpdates)}
-            {renderCategories('Map', patchnotes.details.mapUpdates)}
+            {renderCategories('Item', patchnotes.details.items)}
+            {renderCategories('Champion', patchnotes.details.champions)}
             {renderCategories('Bug', patchnotes.details.bugFixes)}
           </>
         )}
