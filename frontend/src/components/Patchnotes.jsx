@@ -13,9 +13,10 @@ const Patchnotes = ({ game }) => {
       tank: [],
       damage: [],
       support: [],
-      agentUpdates: [],
-      mapUpdates: [],
+      items: [],
+      champions: [],
       bugFixes: [],
+      mapUpdates: [],
     },
     comments: [],
   });
@@ -30,7 +31,7 @@ const Patchnotes = ({ game }) => {
         if (game === 'overwatch') {
           url = `http://localhost:3000/patchnotes/overwatch/${year}/${month}`;
         } else {
-          url = `http://localhost:3000/patchnotes/valorant/${version}`;
+          url = `http://localhost:3000/patchnotes/league-of-legends/${version}`;
         }
 
         const response = await fetch(url);
@@ -46,9 +47,10 @@ const Patchnotes = ({ game }) => {
               tank: [],
               damage: [],
               support: [],
-              agentUpdates: [],
-              mapUpdates: [],
+              items: [],
+              champions: [],
               bugFixes: [],
+              mapUpdates: [],
             },
             comments: data.comments ? data.comments.map(comment => ({ ...comment, replies: comment.replies || [] })) : [],
           });
@@ -59,9 +61,10 @@ const Patchnotes = ({ game }) => {
               tank: [],
               damage: [],
               support: [],
-              agentUpdates: [],
-              mapUpdates: [],
+              items: [],
+              champions: [],
               bugFixes: [],
+              mapUpdates: [],
             },
             comments: [],
           });
@@ -81,7 +84,7 @@ const Patchnotes = ({ game }) => {
       if (game === 'overwatch') {
         url = `http://localhost:3000/patchnotes/overwatch/${year}/${month}/comments`;
       } else {
-        url = `http://localhost:3000/patchnotes/valorant/${version}/comments`;
+        url = `http://localhost:3000/patchnotes/league-of-legends/${version}/comments`;
       }
 
       const response = await fetch(url, {
@@ -115,7 +118,7 @@ const Patchnotes = ({ game }) => {
       if (game === 'overwatch') {
         url = `http://localhost:3000/patchnotes/overwatch/${year}/${month}/comments/${reply.commentId}/replies`;
       } else {
-        url = `http://localhost:3000/patchnotes/valorant/${version}/comments/${reply.commentId}/replies`;
+        url = `http://localhost:3000/patchnotes/league-of-legends/${version}/comments/${reply.commentId}/replies`;
       }
 
       const response = await fetch(url, {
@@ -151,7 +154,7 @@ const Patchnotes = ({ game }) => {
       if (game === 'overwatch') {
         url = `http://localhost:3000/patchnotes/overwatch/${year}/${month}/${commentId}`;
       } else {
-        url = `http://localhost:3000/patchnotes/valorant/${version}/${commentId}`;
+        url = `http://localhost:3000/patchnotes/league-of-legends/${version}/${commentId}`;
       }
 
       const response = await fetch(url, {
@@ -178,7 +181,7 @@ const Patchnotes = ({ game }) => {
       if (game === 'overwatch') {
         url = `http://localhost:3000/patchnotes/overwatch/${year}/${month}/${commentId}/vote`;
       } else {
-        url = `http://localhost:3000/patchnotes/valorant/${version}/${commentId}/vote`;
+        url = `http://localhost:3000/patchnotes/league-of-legends/${version}/${commentId}/vote`;
       }
       const response = await fetch(url, {
         method: 'PUT',
@@ -207,55 +210,46 @@ const Patchnotes = ({ game }) => {
     setModalOpen(true);
   };
 
+  const renderUpdates = (updates) => {
+    return updates.map((update, index) => (
+      <div key={index}>
+        {update.title && <h3>{update.title}</h3>}
+        {update.generalUpdates && update.generalUpdates.length > 0 && (
+          <ul>
+            {update.generalUpdates.map((updateText, idx) => (
+              <li key={idx}>{updateText}</li>
+            ))}
+          </ul>
+        )}
+        {update.abilityUpdates && update.abilityUpdates.length > 0 && (
+          <div>
+            {update.abilityUpdates.map((ability, idx) => (
+              <div key={idx}>
+                <h4>{ability.name}</h4>
+                <ul>
+                  {ability.content.map((abilityText, idy) => (
+                    <li key={idy}>{abilityText}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+        {update.content && update.content.length > 0 && (
+          <ul>
+            {update.content.map((contentText, idx) => (
+              <li key={idx}>{contentText}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    ));
+  };
+
   const renderCategories = (category, notes) => (
     <>
       <h2>{category} Updates</h2>
-      {Array.isArray(notes) && notes.length > 0 && notes.map((data, index) => {
-        if (!data.title && !data.name && !data.content && (!data.generalUpdates || data.generalUpdates.length === 0) && (!data.abilityUpdates || data.abilityUpdates.length === 0)) {
-          return null;
-        }
-        return (
-          <div key={index}>
-            {data.title && <h3>{data.title}</h3>}
-            {data.name && <h3>{data.name}</h3>}
-            {data.generalUpdates && data.generalUpdates.length > 0 && (
-              <div>
-                <h4>General Updates:</h4>
-                <ul>
-                  {data.generalUpdates.map((update, idx) => (
-                    <li key={idx}>{update}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {data.abilityUpdates && data.abilityUpdates.length > 0 && (
-              <div>
-                <h4>Ability Updates:</h4>
-                {data.abilityUpdates.map((ability, idx) => (
-                  <div key={idx}>
-                    <h5>{ability.name}</h5>
-                    <ul>
-                      {ability.content.map((detail, i) => (
-                        <li key={i}>{detail}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            )}
-            {data.content && data.content.length > 0 && (
-              <div>
-                <h4>Content Updates:</h4>
-                <ul>
-                  {data.content.map((content, idx) => (
-                    <li key={idx}>{content}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {Array.isArray(notes) && notes.length > 0 && renderUpdates(notes)}
     </>
   );
 
@@ -283,8 +277,8 @@ const Patchnotes = ({ game }) => {
           </>
         ) : (
           <>
-            {renderCategories('Agent', patchnotes.details.agentUpdates)}
-            {renderCategories('Map', patchnotes.details.mapUpdates)}
+            {renderCategories('Item', patchnotes.details.items)}
+            {renderCategories('Champion', patchnotes.details.champions)}
             {renderCategories('Bug', patchnotes.details.bugFixes)}
           </>
         )}

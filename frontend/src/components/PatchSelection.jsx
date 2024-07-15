@@ -42,8 +42,8 @@ const PatchSelection = ({ game }) => {
                             const [year, month] = note.text.split('/');
                             navigate(`/patchnotes/overwatch/${year}/${month}`);
                         } else {
-                            const version = note.text.split('valorant-patch-notes-')[1];
-                            navigate(`/patchnotes/valorant/${version}`);
+                            const version = note.text.split('patch-')[1].split('-notes')[0];
+                            navigate(`/patchnotes/league-of-legends/${version}`);
                         }
                     }}
                 >

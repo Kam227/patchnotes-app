@@ -3,8 +3,8 @@ const cheerio = require('cheerio');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-const getPatchNotesUrls_VAL = async () => {
-    const url = "https://playvalorant.com/en-us/news/tags/patch-notes/";
+const getPatchNotesUrls_LOL = async () => {
+    const url = "https://www.leagueoflegends.com/en-us/news/tags/patch-notes/";
 
     try {
         const response = await request({
@@ -22,26 +22,28 @@ const getPatchNotesUrls_VAL = async () => {
         $('[data-testid="articlefeaturedcard-component"]').each((index, element) => {
             const patchUrl = $(element).attr('href');
             if (patchUrl) {
-                const fullUrl = `https://playvalorant.com${patchUrl}`;
-                const patchNumberMatch = patchUrl.match(/valorant-patch-notes-([\d.-]+)/);
-                const patchNumber = patchNumberMatch ? patchNumberMatch[1] : null;
+                const fullUrl = `https://www.leagueoflegends.com${patchUrl}`;
+                const patchNumberMatch = patchUrl.match(/(lol-)?patch-(\d{1,2}-\d{1,2})-notes/);
+                const patchNumber = patchNumberMatch ? patchNumberMatch[2] : null;
+                const prefix = patchNumberMatch && patchNumberMatch[1];
                 if (patchNumber) {
                     patchNotesUrls.push({
                         url: fullUrl,
-                        version: patchNumber
+                        version: patchNumber,
+                        prefix: !!prefix
                     });
                 }
             }
         });
 
-        for (const { version, url } of patchNotesUrls) {
-            const patchNote = `valorant-patch-notes-${version}`;
-            const existingPatchNote = await prisma.patchnotes_val.findFirst({
+        for (const { version, url, prefix } of patchNotesUrls) {
+            const patchNote = `${prefix ? 'lol-' : ''}patch-${version}-notes`;
+            const existingPatchNote = await prisma.patchnotes_lol.findFirst({
                 where: { text: patchNote }
             });
 
             if (!existingPatchNote) {
-                await prisma.patchnotes_val.create({
+                await prisma.patchnotes_lol.create({
                     data: {
                         text: patchNote,
                         details: {}
@@ -57,4 +59,4 @@ const getPatchNotesUrls_VAL = async () => {
     }
 }
 
-module.exports = { getPatchNotesUrls_VAL };
+module.exports = { getPatchNotesUrls_LOL };

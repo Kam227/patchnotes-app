@@ -30,9 +30,9 @@ function App() {
           <Route path="/" element={user ? <GameSelection /> : <LoginForm />} />
           <Route path="/signup" element={<SignupForm />} />
           <Route path="/game/overwatch" element={<PatchSelection game="overwatch" />} />
-          <Route path="/game/valorant" element={<PatchSelection game="valorant" />} />
+          <Route path="/game/league-of-legends" element={<PatchSelection game="league-of-legends" />} />
           <Route path="/patchnotes/overwatch/:year/:month" element={<Patchnotes game="overwatch" />} />
-          <Route path="/patchnotes/valorant/:version" element={<Patchnotes game="valorant" />} />
+          <Route path="/patchnotes/league-of-legends/:version" element={<Patchnotes game="league of legends" />} />
           <Route path="/game/patch/:id" element={<p>Character Statistics</p>} />
         </Routes>
       </Router>

@@ -19,13 +19,13 @@ model User {
   email String
   password String
   comments_ow Comment_ow[]
-  comments_val Comment_val[]
+  comments_lol Comment_lol[]
   votes_ow Vote_ow[]
-  votes_val Vote_val[]
+  votes_lol Vote_lol[]
   replies_ow Reply_ow[] @relation("UserReplies")
-  replies_val Reply_val[] @relation("UserRepliesVal")
+  replies_lol Reply_lol[] @relation("UserRepliesLoL")
   repliesTo_ow Reply_ow[] @relation("UserRepliedTo")
-  repliesTo_val Reply_val[] @relation("UserRepliedToVal")
+  repliesTo_lol Reply_lol[] @relation("UserRepliedToLoL")
 }
 
 model Patchnotes_ow {
@@ -35,11 +35,11 @@ model Patchnotes_ow {
   comments Comment_ow[]
 }
 
-model Patchnotes_val {
+model Patchnotes_lol {
   id Int @id @default(autoincrement())
   text String
   details Json
-  comments Comment_val[]
+  comments Comment_lol[]
 }
 
 model Comment_ow {
@@ -54,16 +54,16 @@ model Comment_ow {
   replies Reply_ow[]
 }
 
-model Comment_val {
+model Comment_lol {
   id Int @id @default(autoincrement())
   message String
   voteCount Int @default(0)
-  votes_val Vote_val[]
-  patchnotes_val Patchnotes_val @relation(fields: [patchId], references: [id])
+  votes_lol Vote_lol[]
+  patchnotes_lol Patchnotes_lol @relation(fields: [patchId], references: [id])
   patchId Int
   user User @relation(fields: [userId], references: [id])
   userId Int
-  replies Reply_val[]
+  replies Reply_lol[]
 }
 
 model Vote_ow {
@@ -74,11 +74,11 @@ model Vote_ow {
   commentId Int
 }
 
-model Vote_val {
+model Vote_lol {
   id Int @id @default(autoincrement())
   user User @relation(fields: [userId], references: [id])
   userId Int
-  comment Comment_val @relation(fields: [commentId], references: [id])
+  comment Comment_lol @relation(fields: [commentId], references: [id])
   commentId Int
 }
 
@@ -96,16 +96,22 @@ model Reply_ow {
   replies Reply_ow[] @relation("ParentReply")
 }
 
-model Reply_val {
+model Reply_lol {
   id Int @id @default(autoincrement())
   message String
   userId Int
-  user User @relation(name: "UserRepliesVal", fields: [userId], references: [id])
+  user User @relation(name: "UserRepliesLoL", fields: [userId], references: [id])
   commentId Int
-  comment Comment_val @relation(fields: [commentId], references: [id])
+  comment Comment_lol @relation(fields: [commentId], references: [id])
   parentReplyId Int?
-  parentReply Reply_val? @relation("ParentReply", fields: [parentReplyId], references: [id])
+  parentReply Reply_lol? @relation("ParentReply", fields: [parentReplyId], references: [id])
   replyToId Int
-  replyTo User @relation(name: "UserRepliedToVal", fields: [replyToId], references: [id])
-  replies Reply_val[] @relation("ParentReply")
+  replyTo User @relation(name: "UserRepliedToLoL", fields: [replyToId], references: [id])
+  replies Reply_lol[] @relation("ParentReply")
+}
+
+model Association {
+  id Int @id @default(autoincrement())
+  nerf Json
+  buff Json
 }
