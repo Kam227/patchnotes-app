@@ -8,6 +8,7 @@ const GameSelection = () => {
     return (
         <div className='game-selection'>
             <Navbar />
+            <p onClick={() => navigate('/devtools')}>Developer Tools</p>
             <p onClick={() => navigate('/game/overwatch')}>Overwatch</p>
             <p onClick={() => navigate('/game/league-of-legends')}>League of Legends</p>
         </div>

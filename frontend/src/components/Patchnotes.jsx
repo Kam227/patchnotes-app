@@ -20,9 +20,25 @@ const Patchnotes = ({ game }) => {
     },
     comments: [],
   });
+  const [associations, setAssociations] = useState({ nerf: [], buff: [] });
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentReply, setCurrentReply] = useState({ message: '', replyToId: null, commentId: null, parentReplyId: null });
+  const [filter, setFilter] = useState('all');
+
+  const classifyUpdate = (text) => {
+    for (let keyword of associations.nerf) {
+      if (text.toLowerCase().includes(keyword[0].toLowerCase()) && text.toLowerCase().includes(keyword[1].toLowerCase())) {
+        return 'nerf';
+      }
+    }
+    for (let keyword of associations.buff) {
+      if (text.toLowerCase().includes(keyword[0].toLowerCase()) && text.toLowerCase().includes(keyword[1].toLowerCase())) {
+        return 'buff';
+      }
+    }
+    return 'neutral';
+  };
 
   useEffect(() => {
     const fetchPatchnotes = async () => {
@@ -75,7 +91,21 @@ const Patchnotes = ({ game }) => {
       }
     };
 
+    const fetchAssociations = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/associations');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        setAssociations(data);
+      } catch (error) {
+        console.error('Error fetching associations:', error);
+      }
+    };
+
     fetchPatchnotes();
+    fetchAssociations();
   }, [game, year, month, version]);
 
   const submitComment = async (comment) => {
@@ -210,25 +240,52 @@ const Patchnotes = ({ game }) => {
     setModalOpen(true);
   };
 
+  const filterUpdates = (updates) => {
+    return updates.map(update => {
+      const generalUpdates = update.generalUpdates?.map(generalUpdate => ({
+        text: generalUpdate,
+        classification: classifyUpdate(generalUpdate)
+      }));
+      const abilityUpdates = update.abilityUpdates?.map(abilityUpdate => ({
+        ...abilityUpdate,
+        content: abilityUpdate.content.map(content => ({
+          text: content,
+          classification: classifyUpdate(content)
+        }))
+      }));
+
+      return {
+        ...update,
+        generalUpdates: generalUpdates?.filter(update => filter === 'all' || update.classification === filter),
+        abilityUpdates: abilityUpdates?.map(abilityUpdate => ({
+          ...abilityUpdate,
+          content: abilityUpdate.content.filter(content => filter === 'all' || content.classification === filter)
+        })).filter(abilityUpdate => abilityUpdate.content.length > 0)
+      };
+    }).filter(update => update.generalUpdates?.length > 0 || update.abilityUpdates?.length > 0 || filter === 'all');
+  };
+
   const renderUpdates = (updates) => {
     return updates.map((update, index) => (
       <div key={index}>
         {update.title && <h3>{update.title}</h3>}
         {update.generalUpdates && update.generalUpdates.length > 0 && (
-          <ul>
-            {update.generalUpdates.map((updateText, idx) => (
-              <li key={idx}>{updateText}</li>
-            ))}
-          </ul>
+          <div>
+            <ul>
+              {update.generalUpdates.map((item, idx) => (
+                <li key={idx}>{item.text}</li>
+              ))}
+            </ul>
+          </div>
         )}
         {update.abilityUpdates && update.abilityUpdates.length > 0 && (
           <div>
             {update.abilityUpdates.map((ability, idx) => (
               <div key={idx}>
-                <h4>{ability.name}</h4>
+                <h5>{ability.name}</h5>
                 <ul>
-                  {ability.content.map((abilityText, idy) => (
-                    <li key={idy}>{abilityText}</li>
+                  {ability.content?.map((detail, i) => (
+                    <li key={i}>{detail.text}</li>
                   ))}
                 </ul>
               </div>
@@ -236,11 +293,13 @@ const Patchnotes = ({ game }) => {
           </div>
         )}
         {update.content && update.content.length > 0 && (
-          <ul>
-            {update.content.map((contentText, idx) => (
-              <li key={idx}>{contentText}</li>
-            ))}
-          </ul>
+          <div>
+            <ul>
+              {update.content.map((content, idx) => (
+                <li key={idx}>{content}</li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     ));
@@ -249,7 +308,7 @@ const Patchnotes = ({ game }) => {
   const renderCategories = (category, notes) => (
     <>
       <h2>{category} Updates</h2>
-      {Array.isArray(notes) && notes.length > 0 && renderUpdates(notes)}
+      {Array.isArray(notes) && notes.length > 0 && renderUpdates(filterUpdates(notes))}
     </>
   );
 
@@ -267,6 +326,11 @@ const Patchnotes = ({ game }) => {
     <div className='patchnotes'>
       <Navbar />
       <div className='patches'>
+        <div className="filter-buttons">
+          <button onClick={() => setFilter('all')}>All</button>
+          <button onClick={() => setFilter('buff')}>Buffs</button>
+          <button onClick={() => setFilter('nerf')}>Nerfs</button>
+        </div>
         {game === 'overwatch' ? (
           <>
             {renderCategories('Tank', patchnotes.details.tank)}
@@ -277,8 +341,8 @@ const Patchnotes = ({ game }) => {
           </>
         ) : (
           <>
-            {renderCategories('Item', patchnotes.details.items)}
             {renderCategories('Champion', patchnotes.details.champions)}
+            {renderCategories('Item', patchnotes.details.items)}
             {renderCategories('Bug', patchnotes.details.bugFixes)}
           </>
         )}

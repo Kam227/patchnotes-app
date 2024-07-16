@@ -70,6 +70,10 @@ app.get('/', (req, res) => {
     res.send('game selection');
 });
 
+app.get('/devtools', (req, res) => {
+    res.send('developer tools')
+})
+
 app.get('/patchnotes/overwatch', async (req, res) => {
     try {
         const patchNotes = await prisma.patchnotes_ow.findMany();
@@ -266,5 +270,34 @@ app.get('/patchnotes/overwatch/:year/:month/comments/:commentId/replies', async 
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Failed to fetch replies' });
+    }
+});
+
+// ASSOCIATIONS
+app.post('/associations', async (req, res) => {
+    const { nerf, buff } = req.body;
+    try {
+        await prisma.association.deleteMany({});
+
+        const newAssociation = await prisma.association.create({
+            data: {
+                nerf,
+                buff
+            },
+        });
+        res.json(newAssociation);
+    } catch (error) {
+        console.error('Error in /associations route:', error.message);
+        res.status(500).json({ error: 'Failed to create association' });
+    }
+});
+
+app.get('/associations', async (req, res) => {
+    try {
+        const associations = await prisma.association.findFirst();
+        res.json(associations);
+    } catch (error) {
+        console.error('Error fetching associations:', error.message);
+        res.status(500).json({ error: 'Failed to fetch associations' });
     }
 });

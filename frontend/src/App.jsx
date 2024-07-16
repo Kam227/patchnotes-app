@@ -6,6 +6,7 @@ import PatchSelection from './components/PatchSelection';
 import Patchnotes from './components/Patchnotes';
 import LoginForm from './components/LoginForm';
 import SignupForm from './components/SignupForm';
+import DevTools from './components/DevTools';
 import { UserContext } from '../UserContext';
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
         <Routes>
           <Route path="/" element={user ? <GameSelection /> : <LoginForm />} />
           <Route path="/signup" element={<SignupForm />} />
+          <Route path="/devtools" element={<DevTools />} />
           <Route path="/game/overwatch" element={<PatchSelection game="overwatch" />} />
           <Route path="/game/league-of-legends" element={<PatchSelection game="league-of-legends" />} />
           <Route path="/patchnotes/overwatch/:year/:month" element={<Patchnotes game="overwatch" />} />
