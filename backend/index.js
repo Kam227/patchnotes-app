@@ -70,10 +70,116 @@ app.get('/', (req, res) => {
     res.send('game selection');
 });
 
+// devtools
 app.get('/devtools', (req, res) => {
-    res.send('developer tools')
-})
+    res.send('developer tools');
+});
 
+app.get('/words', async (req, res) => {
+    try {
+        const wordsData = await prisma.words.findFirst();
+        if (!wordsData) {
+            wordsData = await prisma.words.create({
+                data: {
+                    usableWords: [],
+                    deletedWords: [],
+                    keywords: [],
+                    classifiers: [],
+                }
+            });
+        } else {
+            res.json(wordsData);
+        }
+    } catch (error) {
+        console.error('Error fetching words:', error.message);
+        res.status(500).json({ error: 'Failed to fetch words' });
+    }
+});
+
+app.post('/words', async (req, res) => {
+    const { usableWords, deletedWords, keywords, classifiers } = req.body;
+    try {
+        const newWords = await prisma.words.create({
+            data: {
+                usableWords,
+                deletedWords,
+                keywords,
+                classifiers
+            },
+        });
+        res.json(newWords);
+    } catch (error) {
+        console.error('Error creating words:', error.message);
+        res.status(500).json({ error: 'Failed to create words' });
+    }
+});
+
+app.put('/words', async (req, res) => {
+    const { usableWords, deletedWords, keywords, classifiers } = req.body;
+    try {
+        let wordsData = await prisma.words.findFirst();
+
+        if (wordsData) {
+            const updatedWords = await prisma.words.update({
+                where: { id: wordsData.id },
+                data: {
+                    usableWords,
+                    deletedWords,
+                    keywords,
+                    classifiers,
+                },
+            });
+            res.json(updatedWords);
+        } else {
+            const newWords = await prisma.words.create({
+                data: {
+                    usableWords,
+                    deletedWords,
+                    keywords,
+                    classifiers,
+                },
+            });
+            res.json(newWords);
+        }
+    } catch (error) {
+        console.error('Error updating words:', error.message);
+        res.status(500).json({ error: 'Failed to update or create words' });
+    }
+});
+
+app.delete('/keywords/:keyword', async (req, res) => {
+    const { keyword } = req.params;
+    try {
+      const wordsData = await prisma.words.findFirst();
+      const updatedKeywords = wordsData.keywords.filter(kw => kw !== keyword);
+      const updatedWords = await prisma.words.update({
+        where: { id: wordsData.id },
+        data: { keywords: updatedKeywords },
+      });
+      res.json(updatedWords);
+    } catch (error) {
+      console.error('Error deleting keyword:', error.message);
+      res.status(500).json({ error: 'Failed to delete keyword' });
+    }
+  });
+
+  app.delete('/classifiers/:classifier', async (req, res) => {
+    const { classifier } = req.params;
+    try {
+      const wordsData = await prisma.words.findFirst();
+      const updatedClassifiers = wordsData.classifiers.filter(cl => cl !== classifier);
+      const updatedWords = await prisma.words.update({
+        where: { id: wordsData.id },
+        data: { classifiers: updatedClassifiers },
+      });
+      res.json(updatedWords);
+    } catch (error) {
+      console.error('Error deleting classifier:', error.message);
+      res.status(500).json({ error: 'Failed to delete classifier' });
+    }
+  });
+
+// main
 app.get('/patchnotes/overwatch', async (req, res) => {
     try {
         const patchNotes = await prisma.patchnotes_ow.findMany();
@@ -145,6 +251,7 @@ app.get('/patchnotes/league-of-legends/:version', async (req, res) => {
     }
 });
 
+// comments
 app.post('/patchnotes/overwatch/:year/:month/comments', async (req, res) => {
     const { message, patchId, userId } = req.body;
     try {
@@ -209,7 +316,7 @@ app.put('/patchnotes/overwatch/:year/:month/:commentId/vote', cors(), async (req
     const { commentId } = req.params;
     try {
         const updatedVote = await prisma.comment_ow.update({
-            where: { id: parseInt( commentId, 10) },
+            where: { id: parseInt(commentId, 10) },
             data: {
                 voteCount: { increment: 1 },
             },
@@ -225,7 +332,7 @@ app.put('/patchnotes/league-of-legends/:version/:commentId/vote', cors(), async 
     const { commentId } = req.params;
     try {
         const updatedVote = await prisma.comment_lol.update({
-            where: { id: parseInt( commentId, 10) },
+            where: { id: parseInt(commentId, 10) },
             data: {
                 voteCount: { increment: 1 },
             },
@@ -237,7 +344,7 @@ app.put('/patchnotes/league-of-legends/:version/:commentId/vote', cors(), async 
     }
 });
 
-// REPLIES
+// replies
 app.post('/patchnotes/overwatch/:year/:month/comments/:commentId/replies', async (req, res) => {
     const { message, userId, replyToId, parentReplyId } = req.body;
     const { commentId } = req.params;
@@ -273,7 +380,7 @@ app.get('/patchnotes/overwatch/:year/:month/comments/:commentId/replies', async 
     }
 });
 
-// ASSOCIATIONS
+// associations
 app.post('/associations', async (req, res) => {
     const { nerf, buff } = req.body;
     try {
@@ -301,3 +408,23 @@ app.get('/associations', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch associations' });
     }
 });
+
+app.delete('/associations/:type/:index', async (req, res) => {
+    const { type, index } = req.params;
+    try {
+      const associationsData = await prisma.association.findFirst();
+      if (type === 'nerf') {
+        associationsData.nerf.splice(index, 1);
+      } else if (type === 'buff') {
+        associationsData.buff.splice(index, 1);
+      }
+      const updatedAssociations = await prisma.association.update({
+        where: { id: associationsData.id },
+        data: { nerf: associationsData.nerf, buff: associationsData.buff },
+      });
+      res.json(updatedAssociations);
+    } catch (error) {
+      console.error('Error deleting association:', error.message);
+      res.status(500).json({ error: 'Failed to delete association' });
+    }
+  });
