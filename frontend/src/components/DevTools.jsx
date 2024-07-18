@@ -22,54 +22,49 @@ const DevTools = () => {
   const [selectedKeyword, setSelectedKeyword] = useState(null);
   const [selectedWords, setSelectedWords] = useState([]);
   const [actionType, setActionType] = useState('');
-  const [previousState, setPreviousState] = useState({ usableWords: [], keywords: [], classifiers: [] });
 
-  useEffect(() => {
-    const fetchWords = async () => {
-      try {
-        const wordsResponse = await fetch('http://localhost:3000/words');
-        if (!wordsResponse.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const wordsData = await wordsResponse.json();
-        console.log(wordsData);
-
-        if (!wordsData || wordsData.usableWords.length === 0) {
-          await fetchPatchnotesData();
-        } else {
-          setUsableWords(wordsData.usableWords || []);
-          setDeletedWords(wordsData.deletedWords || []);
-          setKeywords(wordsData.keywords || []);
-          setClassifiers(wordsData.classifiers || []);
-          await checkForNewWords(wordsData.usableWords, wordsData.deletedWords);
-        }
-      } catch (error) {
-        console.error('Error fetching words:', error);
-        setError('Failed to fetch words. Please try again later.');
+useEffect(() => {
+  const fetchWords = async () => {
+    try {
+      const wordsResponse = await fetch('http://localhost:3000/words');
+      if (!wordsResponse.ok) {
+        throw new Error('Network response was not ok');
       }
-    };
+      const wordsData = await wordsResponse.json();
 
-    const fetchAssociations = async () => {
-      try {
-        const associationsResponse = await fetch('http://localhost:3000/associations');
-        if (!associationsResponse.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const associationsData = await associationsResponse.json();
-        console.log('Fetched associations:', associationsData);
-        setNerfs(associationsData?.nerf || []);
-        setBuffs(associationsData?.buff || []);
-      } catch (error) {
-        console.error('Error fetching associations:', error);
-        setError('Failed to fetch associations. Please try again later.');
+      console.log('Server Response:', wordsData);
+
+      setUsableWords(Array.from(new Set(wordsData.usableWords || [])));
+      setDeletedWords(Array.from(new Set(wordsData.deletedWords || [])));
+      setKeywords(Array.from(new Set(wordsData.keywords || [])));
+      setClassifiers(Array.from(new Set(wordsData.classifiers || [])));
+    } catch (error) {
+      console.error('Error fetching words:', error);
+      setError('Failed to fetch words.');
+    }
+  };
+
+  const fetchAssociations = async () => {
+    try {
+      const associationsResponse = await fetch('http://localhost:3000/associations');
+      if (!associationsResponse.ok) {
+        throw new Error('Network response was not ok');
       }
-    };
+      const associationsData = await associationsResponse.json();
+      setNerfs(Array.from(new Set(associationsData.nerf || [])));
+      setBuffs(Array.from(new Set(associationsData.buff || [])));
+    } catch (error) {
+      console.error('Error fetching associations:', error);
+      setError('Failed to fetch associations. Please try again later.');
+    }
+  };
 
-    fetchWords();
-    fetchAssociations();
-  }, []);
+  fetchWords();
+  fetchAssociations();
+  fetchPatchnotesData();
+}, []);
 
-  const fetchPatchnotesData = async () => {
+const fetchPatchnotesData = async () => {
     try {
       const [overwatchResponse, leagueResponse] = await Promise.all([
         fetch('http://localhost:3000/patchnotes/overwatch/'),
@@ -83,31 +78,49 @@ const DevTools = () => {
       const overwatchData = await overwatchResponse.json();
       const leagueData = await leagueResponse.json();
 
-      console.log('Overwatch data:', overwatchData);
-      console.log('League data:', leagueData);
-
       setOverwatchData(overwatchData);
       setLeagueData(leagueData);
 
       const extractedWords = extractWords(overwatchData, leagueData);
-      await saveWordsToDatabase({ usableWords: extractedWords, deletedWords: [], keywords: [], classifiers: [] });
-      setUsableWords(extractedWords);
+      await saveWordsToDatabase(extractedWords);
     } catch (error) {
       console.error('Error fetching patch details:', error);
       setError('Failed to fetch patch details. Please try again later.');
     }
-  };
+};
 
-  const saveWordsToDatabase = async (data) => {
+  const saveWordsToDatabase = async (extractedWords) => {
     try {
-      const response = await fetch('http://localhost:3000/words', {
+      const response = await fetch('http://localhost:3000/words');
+      if (!response.ok) {
+        throw new Error('Failed to fetch words from database');
+      }
+      const wordsData = await response.json();
+
+      const existingWords = new Set([
+        ...wordsData.usableWords,
+        ...wordsData.deletedWords,
+        ...wordsData.keywords,
+        ...wordsData.classifiers
+      ]);
+
+      const newUsableWords = extractedWords.filter(word => !existingWords.has(word));
+
+      const data = {
+        usableWords: newUsableWords,
+        deletedWords: [],
+        keywords: [],
+        classifiers: []
+      };
+
+      const saveResponse = await fetch('http://localhost:3000/words', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
       });
-      if (!response.ok) {
+      if (!saveResponse.ok) {
         throw new Error('Failed to save words to database');
       }
     } catch (error) {
@@ -142,27 +155,6 @@ const DevTools = () => {
     return Array.from(wordsSet);
   };
 
-  const checkForNewWords = async (usableWords, deletedWords) => {
-    const allExtractedWords = extractWords(overwatchData, leagueData);
-    const newUsableWords = [...usableWords];
-
-    allExtractedWords.forEach(word => {
-      if (!usableWords.includes(word) && !deletedWords.includes(word)) {
-        newUsableWords.push(word);
-      }
-    });
-
-    if (newUsableWords.length !== usableWords.length) {
-      setUsableWords(newUsableWords);
-      await saveWordsToDatabase({
-        usableWords: newUsableWords,
-        deletedWords,
-        keywords,
-        classifiers
-      });
-    }
-  };
-
   const handleWordClick = (word) => {
     if (selectedWords.includes(word)) {
       setSelectedWords(selectedWords.filter(w => w !== word));
@@ -171,25 +163,49 @@ const DevTools = () => {
     }
   };
 
-  const deleteKeyword = async (keyword) => {
+  const updateWordsCategory = async (category) => {
     try {
-      await fetch(`http://localhost:3000/keywords/${keyword}`, {
-        method: 'DELETE',
+      const response = await fetch(`http://localhost:3000/words/category/${category}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ words: selectedWords }),
       });
-      setKeywords(keywords.filter(kw => kw !== keyword));
+      if (!response.ok) {
+        throw new Error('Failed to update words');
+      }
+
+      if (category === 'keyword') {
+        setKeywords(prevKeywords => Array.from(new Set([...prevKeywords, ...selectedWords])));
+        setUsableWords(prevUsableWords => prevUsableWords.filter(word => !selectedWords.includes(word)));
+      } else if (category === 'classifier') {
+        setClassifiers(prevClassifiers => Array.from(new Set([...prevClassifiers, ...selectedWords])));
+        setUsableWords(prevUsableWords => prevUsableWords.filter(word => !selectedWords.includes(word)));
+      }
+
+      setSelectedWords([]);
+      setActionType('');
     } catch (error) {
-      console.error('Error deleting keyword:', error);
+      console.error('Error updating words:', error);
     }
   };
 
-  const deleteClassifier = async (classifier) => {
+  const deleteWord = async (word) => {
     try {
-      await fetch(`http://localhost:3000/classifiers/${classifier}`, {
+      const response = await fetch(`http://localhost:3000/words/${word}`, {
         method: 'DELETE',
       });
-      setClassifiers(classifiers.filter(cl => cl !== classifier));
+      if (!response.ok) {
+        throw new Error('Failed to delete word');
+      }
+
+      setUsableWords(prevUsableWords => prevUsableWords.filter(w => w !== word));
+      setKeywords(prevKeywords => prevKeywords.filter(kw => kw !== word));
+      setClassifiers(prevClassifiers => prevClassifiers.filter(cl => cl !== word));
+      setDeletedWords(prevDeletedWords => prevDeletedWords.filter(dw => dw !== word));
     } catch (error) {
-      console.error('Error deleting classifier:', error);
+      console.error('Error deleting word:', error);
     }
   };
 
@@ -209,57 +225,21 @@ const DevTools = () => {
   };
 
   const applyAction = async () => {
-    let newUsableWords = [...usableWords];
-    let newDeletedWords = [...deletedWords];
-    let newKeywords = [...keywords];
-    let newClassifiers = [...classifiers];
-
     if (actionType === 'delete') {
-      newUsableWords = usableWords.filter(word => !selectedWords.includes(word));
-      newDeletedWords = [...new Set([...deletedWords, ...selectedWords])];
-    } else if (actionType === 'keyword') {
-      newKeywords = [...new Set([...keywords, ...selectedWords])];
-    } else if (actionType === 'classifier') {
-      newClassifiers = [...new Set([...classifiers, ...selectedWords])];
+      await Promise.all(selectedWords.map(deleteWord));
+    } else {
+      await updateWordsCategory(actionType);
     }
-
-    const dataToUpdate = {
-      usableWords: newUsableWords,
-      deletedWords: newDeletedWords,
-      keywords: newKeywords,
-      classifiers: newClassifiers
-    };
-
-    setUsableWords(newUsableWords);
-    setDeletedWords(newDeletedWords);
-    setKeywords(newKeywords);
-    setClassifiers(newClassifiers);
-    setSelectedWords([]);
-
-    try {
-      await saveWordsToDatabase(dataToUpdate);
-    } catch (error) {
-      console.error('Error updating words:', error);
-    }
-
     setSelectingFor(null);
     setActionType('');
   };
 
   const cancelAction = () => {
-    setUsableWords(previousState.usableWords);
-    setKeywords(previousState.keywords);
-    setClassifiers(previousState.classifiers);
     setSelectedWords([]);
     setActionType('');
   };
 
   const startAction = (type) => {
-    setPreviousState({
-      usableWords: [...usableWords],
-      keywords: [...keywords],
-      classifiers: [...classifiers],
-    });
     setActionType(type);
     setSelectedWords([]);
   };
@@ -329,7 +309,7 @@ const DevTools = () => {
               className={`word ${selectedWords.includes(word) ? 'selected' : ''}`}
               onClick={() => handleWordClick(word)}
             >
-              {word}
+              {`${word}  `}
             </span>
           ))}
         </div>
@@ -339,7 +319,7 @@ const DevTools = () => {
         <div className='selected-list'>
           {keywords.map((word, index) => (
             <span key={index} className='selected-word'>
-              {word} <span className='trash-icon' onClick={() => deleteKeyword(word)}>🗑️</span>
+              {word} <span className='trash-icon' onClick={() => deleteWord(word)}>🗑️</span>
             </span>
           ))}
         </div>
@@ -349,7 +329,7 @@ const DevTools = () => {
         <div className='selected-list'>
           {classifiers.map((word, index) => (
             <span key={index} className='selected-word'>
-              {word} <span className='trash-icon' onClick={() => deleteClassifier(word)}>🗑️</span>
+              {word} <span className='trash-icon' onClick={() => deleteWord(word)}>🗑️</span>
             </span>
           ))}
         </div>

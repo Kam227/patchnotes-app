@@ -16,10 +16,10 @@ const LEAGUE_OF_LEGENDS_URL = 'https://www.leagueoflegends.com/en-us/news/game-u
 const app = express();
 
 app.use(
-    cors({
-        origin: 'http://localhost:5173',
-        credentials: true,
-    })
+  cors({
+    origin: 'http://localhost:5173',
+    credentials: true,
+  })
 );
 
 app.use(express.json());
@@ -27,17 +27,17 @@ app.use(express.json());
 const store = new (connectPgSimple(session))({ createTableIfMissing: true });
 
 app.use(
-    session({
-        store: store,
-        secret: 'my-secret-key',
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-            sameSite: false,
-            secure: false,
-            maxAge: 365 * 24 * 60 * 60 * 1000,
-        },
-    })
+  session({
+    store: store,
+    secret: 'my-secret-key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      sameSite: false,
+      secure: false,
+      maxAge: 365 * 24 * 60 * 60 * 1000,
+    },
+  })
 );
 
 app.use('/users', userRoutes);
@@ -45,386 +45,420 @@ app.use('/users', userRoutes);
 const PORT = 3000;
 
 app.listen(PORT, async () => {
-    console.log(`App is listening on http://localhost:${PORT}`);
+  console.log(`App is listening on http://localhost:${PORT}`);
 
-    try {
-        const owUrls = await urls_OW.getPatchNotesUrls_OW();
-        for (const { year, month } of owUrls) {
-            await details_OW.getPatchNotesDetails_OW(OVERWATCH_URL, year, month);
-        }
-    } catch (error) {
-        console.error('Error while scraping and storing Overwatch patch notes:', error.message);
+  try {
+    const owUrls = await urls_OW.getPatchNotesUrls_OW();
+    for (const { year, month } of owUrls) {
+      await details_OW.getPatchNotesDetails_OW(OVERWATCH_URL, year, month);
     }
+  } catch (error) {
+    console.error('Error while scraping and storing Overwatch patch notes:', error.message);
+  }
 
-    try {
-        const lolUrls = await urls_LOL.getPatchNotesUrls_LOL();
-        for (const { version, prefix } of lolUrls) {
-            await details_LOL.getPatchNotesDetails_LOL(LEAGUE_OF_LEGENDS_URL, version, prefix);
-        }
-    } catch (error) {
-        console.error('Error while scraping and storing League of Legends patch notes:', error.message);
+  try {
+    const lolUrls = await urls_LOL.getPatchNotesUrls_LOL();
+    for (const { version, prefix } of lolUrls) {
+      await details_LOL.getPatchNotesDetails_LOL(LEAGUE_OF_LEGENDS_URL, version, prefix);
     }
+  } catch (error) {
+    console.error('Error while scraping and storing League of Legends patch notes:', error.message);
+  }
 });
 
 app.get('/', (req, res) => {
-    res.send('game selection');
+  res.send('game selection');
 });
 
 // devtools
 app.get('/devtools', (req, res) => {
-    res.send('developer tools');
+  res.send('developer tools');
 });
 
 app.get('/words', async (req, res) => {
-    try {
-        const wordsData = await prisma.words.findFirst();
-        if (!wordsData) {
-            wordsData = await prisma.words.create({
-                data: {
-                    usableWords: [],
-                    deletedWords: [],
-                    keywords: [],
-                    classifiers: [],
-                }
-            });
-        } else {
-            res.json(wordsData);
-        }
-    } catch (error) {
-        console.error('Error fetching words:', error.message);
-        res.status(500).json({ error: 'Failed to fetch words' });
-    }
+  try {
+    const words = await prisma.word.findMany();
+    const categorizedWords = words.reduce((acc, word) => {
+      acc[word.category] = acc[word.category] || [];
+      acc[word.category].push(word.word);
+      return acc;
+    }, {});
+
+    res.json({
+      usableWords: categorizedWords.usable || [],
+      deletedWords: categorizedWords.deleted || [],
+      keywords: categorizedWords.keyword || [],
+      classifiers: categorizedWords.classifier || [],
+    });
+  } catch (error) {
+    console.error('Error fetching words:', error.message);
+    res.status(500).json({ error: 'Failed to fetch words' });
+  }
 });
 
-app.post('/words', async (req, res) => {
-    const { usableWords, deletedWords, keywords, classifiers } = req.body;
-    try {
-        const newWords = await prisma.words.create({
-            data: {
-                usableWords,
-                deletedWords,
-                keywords,
-                classifiers
-            },
-        });
-        res.json(newWords);
-    } catch (error) {
-        console.error('Error creating words:', error.message);
-        res.status(500).json({ error: 'Failed to create words' });
-    }
-});
 
 app.put('/words', async (req, res) => {
-    const { usableWords, deletedWords, keywords, classifiers } = req.body;
-    try {
-        let wordsData = await prisma.words.findFirst();
+  const { usableWords, deletedWords, keywords, classifiers } = req.body;
 
-        if (wordsData) {
-            const updatedWords = await prisma.words.update({
-                where: { id: wordsData.id },
-                data: {
-                    usableWords,
-                    deletedWords,
-                    keywords,
-                    classifiers,
-                },
-            });
-            res.json(updatedWords);
-        } else {
-            const newWords = await prisma.words.create({
-                data: {
-                    usableWords,
-                    deletedWords,
-                    keywords,
-                    classifiers,
-                },
-            });
-            res.json(newWords);
-        }
-    } catch (error) {
-        console.error('Error updating words:', error.message);
-        res.status(500).json({ error: 'Failed to update or create words' });
-    }
+  try {
+    await prisma.$transaction(
+      usableWords.map(word => prisma.word.upsert({
+        where: { word },
+        update: { category: 'usable' },
+        create: { word, category: 'usable' }
+      }))
+    );
+
+    await prisma.$transaction(
+      deletedWords.map(word => prisma.word.upsert({
+        where: { word },
+        update: { category: 'deleted' },
+        create: { word, category: 'deleted' }
+      }))
+    );
+
+    await prisma.$transaction(
+      keywords.map(word => prisma.word.upsert({
+        where: { word },
+        update: { category: 'keyword' },
+        create: { word, category: 'keyword' }
+      }))
+    );
+
+    await prisma.$transaction(
+      classifiers.map(word => prisma.word.upsert({
+        where: { word },
+        update: { category: 'classifier' },
+        create: { word, category: 'classifier' }
+      }))
+    );
+
+    res.json({ message: 'Words updated successfully' });
+  } catch (error) {
+    console.error('Error saving words:', error.message);
+    res.status(500).json({ error: 'Failed to save words' });
+  }
 });
 
-app.delete('/keywords/:keyword', async (req, res) => {
-    const { keyword } = req.params;
-    try {
-      const wordsData = await prisma.words.findFirst();
-      const updatedKeywords = wordsData.keywords.filter(kw => kw !== keyword);
-      const updatedWords = await prisma.words.update({
-        where: { id: wordsData.id },
-        data: { keywords: updatedKeywords },
-      });
-      res.json(updatedWords);
-    } catch (error) {
-      console.error('Error deleting keyword:', error.message);
-      res.status(500).json({ error: 'Failed to delete keyword' });
-    }
-  });
+app.put('/words/category/:category', async (req, res) => {
+  const { category } = req.params;
+  const { words } = req.body;
 
-  app.delete('/classifiers/:classifier', async (req, res) => {
-    const { classifier } = req.params;
-    try {
-      const wordsData = await prisma.words.findFirst();
-      const updatedClassifiers = wordsData.classifiers.filter(cl => cl !== classifier);
-      const updatedWords = await prisma.words.update({
-        where: { id: wordsData.id },
-        data: { classifiers: updatedClassifiers },
-      });
-      res.json(updatedWords);
-    } catch (error) {
-      console.error('Error deleting classifier:', error.message);
-      res.status(500).json({ error: 'Failed to delete classifier' });
-    }
-  });
+  if (!['keyword', 'classifier', 'usable', 'deleted'].includes(category)) {
+    return res.status(400).json({ error: 'Invalid category' });
+  }
+
+  try {
+    await prisma.$transaction(
+      words.map(word => prisma.word.upsert({
+        where: { word },
+        update: { category },
+        create: { word, category }
+      }))
+    );
+
+    res.json({ message: 'Words updated successfully' });
+  } catch (error) {
+    console.error('Error updating words:', error.message);
+    res.status(500).json({ error: 'Failed to update words' });
+  }
+});
+
+app.delete('/words/:word', async (req, res) => {
+  const { word } = req.params;
+  try {
+    await prisma.word.deleteMany({ where: { word } });
+    res.json({ message: 'Word deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting word:', error.message);
+    res.status(500).json({ error: 'Failed to delete word' });
+  }
+});
 
 // main
 app.get('/patchnotes/overwatch', async (req, res) => {
-    try {
-        const patchNotes = await prisma.patchnotes_ow.findMany();
-        res.json(patchNotes);
-    } catch (error) {
-        console.error('Error in /patchnotes/overwatch route:', error.message);
-        res.status(500).send({ error: 'Error while fetching patch notes' });
-    }
+  try {
+    const patchNotes = await prisma.patchnotes_ow.findMany();
+    res.json(patchNotes);
+  } catch (error) {
+    console.error('Error in /patchnotes/overwatch route:', error.message);
+    res.status(500).send({ error: 'Error while fetching patch notes' });
+  }
 });
 
 app.get('/patchnotes/league-of-legends', async (req, res) => {
-    try {
-        const patchNotes = await prisma.patchnotes_lol.findMany();
-        res.json(patchNotes);
-    } catch (error) {
-        console.error('Error in /patchnotes/league-of-legends route:', error.message);
-        res.status(500).send({ error: 'Error while fetching patch notes' });
-    }
+  try {
+    const patchNotes = await prisma.patchnotes_lol.findMany();
+    res.json(patchNotes);
+  } catch (error) {
+    console.error('Error in /patchnotes/league-of-legends route:', error.message);
+    res.status(500).send({ error: 'Error while fetching patch notes' });
+  }
 });
 
 app.get('/patchnotes/overwatch/:year/:month', async (req, res) => {
-    const { year, month } = req.params;
-    try {
-        const patchDetails = await prisma.patchnotes_ow.findFirst({
-            where: { text: `${year}/${month}` },
-            include: {
-                comments: {
-                    include: {
-                        user: true,
-                        replies: {
-                            include: { user: true, replyTo: true }
-                        }
-                    }
-                }
+  const { year, month } = req.params;
+  try {
+    const patchDetails = await prisma.patchnotes_ow.findFirst({
+      where: { text: `${year}/${month}` },
+      include: {
+        comments: {
+          include: {
+            user: true,
+            replies: {
+              include: { user: true, replyTo: true }
             }
-        });
-        res.json(patchDetails || {});
-    } catch (error) {
-        console.error('Error in /patchnotes/overwatch/:year/:month route:', error.message);
-        res.status(500).send({ error: 'Error while fetching patch notes details' });
-    }
+          }
+        }
+      }
+    });
+    res.json(patchDetails || {});
+  } catch (error) {
+    console.error('Error in /patchnotes/overwatch/:year/:month route:', error.message);
+    res.status(500).send({ error: 'Error while fetching patch notes details' });
+  }
 });
 
 app.get('/patchnotes/league-of-legends/:version', async (req, res) => {
-    const { version } = req.params;
-    try {
-        const patchDetails = await prisma.patchnotes_lol.findFirst({
-            where: {
-                OR: [
-                    { text: `lol-patch-${version}-notes` },
-                    { text: `patch-${version}-notes` }
-                ]
-            },
-            include: {
-                comments: {
-                    include: {
-                        user: true,
-                        replies: {
-                            include: { user: true, replyTo: true }
-                        }
-                    }
-                }
+  const { version } = req.params;
+  try {
+    const patchDetails = await prisma.patchnotes_lol.findFirst({
+      where: {
+        OR: [
+          { text: `lol-patch-${version}-notes` },
+          { text: `patch-${version}-notes` }
+        ]
+      },
+      include: {
+        comments: {
+          include: {
+            user: true,
+            replies: {
+              include: { user: true, replyTo: true }
             }
-        });
-        res.json(patchDetails || {});
-    } catch (error) {
-        console.error('Error in /patchnotes/league-of-legends/:version route:', error.message);
-        res.status(500).send({ error: 'Error while fetching patch notes details' });
-    }
+          }
+        }
+      }
+    });
+    res.json(patchDetails || {});
+  } catch (error) {
+    console.error('Error in /patchnotes/league-of-legends/:version route:', error.message);
+    res.status(500).send({ error: 'Error while fetching patch notes details' });
+  }
 });
 
 // comments
 app.post('/patchnotes/overwatch/:year/:month/comments', async (req, res) => {
-    const { message, patchId, userId } = req.body;
-    try {
-        const newComment = await prisma.comment_ow.create({
-            data: {
-                message,
-                patchId,
-                userId,
-            },
-        });
-        res.json(newComment);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to create comment' });
-    }
+  const { message, patchId, userId } = req.body;
+  try {
+    const newComment = await prisma.comment_ow.create({
+      data: {
+        message,
+        patchId,
+        userId,
+      },
+    });
+    res.json(newComment);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to create comment' });
+  }
 });
 
 app.post('/patchnotes/league-of-legends/:version/comments', async (req, res) => {
-    const { message, patchId, userId } = req.body;
-    try {
-        const newComment = await prisma.comment_lol.create({
-            data: {
-                message,
-                patchId,
-                userId,
-            },
-        });
-        res.json(newComment);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to create comment' });
-    }
+  const { message, patchId, userId } = req.body;
+  try {
+    const newComment = await prisma.comment_lol.create({
+      data: {
+        message,
+        patchId,
+        userId,
+      },
+    });
+    res.json(newComment);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to create comment' });
+  }
 });
 
 app.delete('/patchnotes/overwatch/:year/:month/:commentId', cors(), async (req, res) => {
-    const { commentId } = req.params;
-    try {
-        const deletedComment = await prisma.comment_ow.delete({
-            where: { id: parseInt(commentId, 10) },
-        });
-        res.json(deletedComment)
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to delete card' });
-    }
+  const { commentId } = req.params;
+  try {
+    const deletedComment = await prisma.comment_ow.delete({
+      where: { id: parseInt(commentId, 10) },
+    });
+    res.json(deletedComment);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete card' });
+  }
 });
 
 app.delete('/patchnotes/league-of-legends/:version/:commentId', cors(), async (req, res) => {
-    const { commentId } = req.params;
-    try {
-        const deletedComment = await prisma.comment_lol.delete({
-            where: { id: parseInt(commentId, 10) },
-        });
-        res.json(deletedComment)
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to delete card' });
-    }
+  const { commentId } = req.params;
+  try {
+    const deletedComment = await prisma.comment_lol.delete({
+      where: { id: parseInt(commentId, 10) },
+    });
+    res.json(deletedComment);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete card' });
+  }
 });
 
 app.put('/patchnotes/overwatch/:year/:month/:commentId/vote', cors(), async (req, res) => {
-    const { commentId } = req.params;
-    try {
-        const updatedVote = await prisma.comment_ow.update({
-            where: { id: parseInt(commentId, 10) },
-            data: {
-                voteCount: { increment: 1 },
-            },
-        });
-        res.json(updatedVote);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to upvote comment'});
-    }
+  const { commentId } = req.params;
+  try {
+    const updatedVote = await prisma.comment_ow.update({
+      where: { id: parseInt(commentId, 10) },
+      data: {
+        voteCount: { increment: 1 },
+      },
+    });
+    res.json(updatedVote);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to upvote comment' });
+  }
 });
 
 app.put('/patchnotes/league-of-legends/:version/:commentId/vote', cors(), async (req, res) => {
-    const { commentId } = req.params;
-    try {
-        const updatedVote = await prisma.comment_lol.update({
-            where: { id: parseInt(commentId, 10) },
-            data: {
-                voteCount: { increment: 1 },
-            },
-        });
-        res.json(updatedVote);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to upvote comment'});
-    }
+  const { commentId } = req.params;
+  try {
+    const updatedVote = await prisma.comment_lol.update({
+      where: { id: parseInt(commentId, 10) },
+      data: {
+        voteCount: { increment: 1 },
+      },
+    });
+    res.json(updatedVote);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to upvote comment' });
+  }
 });
 
 // replies
 app.post('/patchnotes/overwatch/:year/:month/comments/:commentId/replies', async (req, res) => {
-    const { message, userId, replyToId, parentReplyId } = req.body;
-    const { commentId } = req.params;
-    try {
-        const newReply = await prisma.reply_ow.create({
-            data: {
-                message,
-                user: { connect: { id: userId } },
-                comment: { connect: { id: parseInt(commentId, 10) } },
-                replyTo: { connect: { id: replyToId } },
-                parentReply: parentReplyId ? { connect: { id: parentReplyId } } : undefined
-            },
-            include: { user: true, replyTo: true },
-        });
-        res.json(newReply);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to create reply' });
-    }
+  const { message, userId, replyToId, parentReplyId } = req.body;
+  const { commentId } = req.params;
+  try {
+    const newReply = await prisma.reply_ow.create({
+      data: {
+        message,
+        user: { connect: { id: userId } },
+        comment: { connect: { id: parseInt(commentId, 10) } },
+        replyTo: { connect: { id: replyToId } },
+        parentReply: parentReplyId ? { connect: { id: parentReplyId } } : undefined
+      },
+      include: { user: true, replyTo: true },
+    });
+    res.json(newReply);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to create reply' });
+  }
 });
 
 app.get('/patchnotes/overwatch/:year/:month/comments/:commentId/replies', async (req, res) => {
-    const { commentId } = req.params;
-    try {
-        const replies = await prisma.reply_ow.findMany({
-            where: { commentId: parseInt(commentId, 10) },
-            include: { user: true, replyTo: true, replies: true },
-        });
-        res.json(replies);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to fetch replies' });
-    }
+  const { commentId } = req.params;
+  try {
+    const replies = await prisma.reply_ow.findMany({
+      where: { commentId: parseInt(commentId, 10) },
+      include: { user: true, replyTo: true, replies: true },
+    });
+    res.json(replies);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch replies' });
+  }
 });
 
 // associations
 app.post('/associations', async (req, res) => {
-    const { nerf, buff } = req.body;
-    try {
-        await prisma.association.deleteMany({});
+  const { nerf, buff } = req.body;
 
-        const newAssociation = await prisma.association.create({
-            data: {
-                nerf,
-                buff
-            },
-        });
-        res.json(newAssociation);
-    } catch (error) {
-        console.error('Error in /associations route:', error.message);
-        res.status(500).json({ error: 'Failed to create association' });
-    }
+  try {
+    await prisma.association.deleteMany({});
+
+    await prisma.$transaction(
+      nerf.map(([keyword, classifier]) => prisma.association.create({
+        data: { type: 'nerf', keyword, classifier }
+      }))
+    );
+
+    await prisma.$transaction(
+      buff.map(([keyword, classifier]) => prisma.association.create({
+        data: { type: 'buff', keyword, classifier }
+      }))
+    );
+
+    res.json({ message: 'Associations updated successfully' });
+  } catch (error) {
+    console.error('Error in /associations route:', error.message);
+    res.status(500).json({ error: 'Failed to create associations' });
+  }
 });
 
 app.get('/associations', async (req, res) => {
-    try {
-        const associations = await prisma.association.findFirst();
-        res.json(associations);
-    } catch (error) {
-        console.error('Error fetching associations:', error.message);
-        res.status(500).json({ error: 'Failed to fetch associations' });
-    }
+  try {
+    const associations = await prisma.association.findMany();
+    const nerfs = associations.filter(a => a.type === 'nerf').map(a => [a.keyword, a.classifier]);
+    const buffs = associations.filter(a => a.type === 'buff').map(a => [a.keyword, a.classifier]);
+
+    res.json({ nerf: nerfs, buff: buffs });
+  } catch (error) {
+    console.error('Error fetching associations:', error.message);
+    res.status(500).json({ error: 'Failed to fetch associations' });
+  }
 });
 
+
 app.delete('/associations/:type/:index', async (req, res) => {
-    const { type, index } = req.params;
-    try {
-      const associationsData = await prisma.association.findFirst();
-      if (type === 'nerf') {
-        associationsData.nerf.splice(index, 1);
-      } else if (type === 'buff') {
-        associationsData.buff.splice(index, 1);
-      }
-      const updatedAssociations = await prisma.association.update({
-        where: { id: associationsData.id },
-        data: { nerf: associationsData.nerf, buff: associationsData.buff },
-      });
-      res.json(updatedAssociations);
-    } catch (error) {
-      console.error('Error deleting association:', error.message);
-      res.status(500).json({ error: 'Failed to delete association' });
+  const { type, index } = req.params;
+  try {
+    const associations = await prisma.association.findMany({ where: { type } });
+    const associationId = associations[index].id;
+
+    await prisma.association.delete({ where: { id: associationId } });
+
+    res.json({ message: 'Association deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting association:', error.message);
+    res.status(500).json({ error: 'Failed to delete association' });
+  }
+});
+
+// character stats
+app.get('/:character', (req, res) => {
+  res.send('character page');
+});
+
+app.get('/stats', async (req, res) => {
+  try {
+    await getCharacterDetails_OW();
+    res.json({ message: 'Scraping and storing data completed successfully.' });
+  } catch (error) {
+    console.error('Error in /stats route:', error.message);
+    res.status(500).json({ error: 'Failed to scrape data' });
+  }
+});
+
+app.get('/stats/:character', async (req, res) => {
+  const { character } = req.params;
+  try {
+    const stats = await prisma.statistics.findUnique({
+      where: { character }
+    });
+    if (stats) {
+      res.json(stats);
+    } else {
+      res.status(404).json({ error: 'Character not found' });
     }
-  });
+  } catch (error) {
+    console.error('Error fetching statistics:', error.message);
+    res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
