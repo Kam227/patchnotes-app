@@ -10,7 +10,10 @@ const urls_LOL = require('./supplements/getPatchNotesUrls_LOL');
 const details_LOL = require('./supplements/getPatchNotesDetails_LOL');
 const stats_OW = require('./supplements/getCharacterDetails_OW');
 const stats_LOL = require('./supplements/getCharacterDetails_LOL');
+const abilities_OW = require('./supplements/getCharacterAbilities_OW');
+const abilities_LOL = require('./supplements/getCharacterAbilities_LOL');
 const userRoutes = require('./routes/users');
+const calc = require('./supplements/calculateOverallPercentile');
 
 const OVERWATCH_URL = 'https://overwatch.blizzard.com/en-us/news/patch-notes/';
 const LEAGUE_OF_LEGENDS_URL = 'https://www.leagueoflegends.com/en-us/news/game-updates/';
@@ -79,6 +82,27 @@ app.listen(PORT, async () => {
     console.log('Initial scraping completed.');
   } catch (error) {
     console.error('Error during initial scraping:', error.message);
+  }
+
+  try {
+    await abilities_OW.getCharacterAbilities_OW();
+    console.log('Initial ability parsing completed.');
+  } catch (error) {
+    console.error('Error during initial ability parsing:', error.message);
+  }
+
+  try {
+    await abilities_LOL.getCharacterAbilities_LOL();
+    console.log('Initial ability parsing completed.');
+  } catch (error) {
+    console.error('Error during initial ability parsing:', error.message);
+  }
+
+  try {
+    await calc.calculateOverallPercentile();
+    console.log('Overall percentile calculation completed.');
+  } catch (error) {
+      console.error('Error during overall percentile calculation:', error.message);
   }
 });
 
@@ -448,10 +472,6 @@ app.delete('/associations/:type/:index', async (req, res) => {
 });
 
 // character stats
-app.get('/:character', (req, res) => {
-  res.send('character page');
-});
-
 app.get('/stats/:character', async (req, res) => {
   const { character } = req.params;
   try {
@@ -468,4 +488,46 @@ app.get('/stats/:character', async (req, res) => {
     console.error('Error fetching statistics:', error.message);
     res.status(500).json({ error: 'Failed to fetch statistics' });
   }
+});
+
+// abilities
+app.get('/abilities', async (req, res) => {
+  try {
+    const abilities = await prisma.ability.findMany();
+    const abilityMap = {};
+
+    abilities.forEach((ability) => {
+      const key = `${ability.character}-${ability.name}-${ability.patchIdOW || ability.patchIdLOL}`;
+      if (!abilityMap[key]) {
+        abilityMap[key] = {
+          character: ability.character,
+          name: ability.name,
+          combinedPercentile: 0,
+          count: 0,
+          overallPercentile: ability.overallPercentile,
+        };
+      }
+      abilityMap[key].combinedPercentile += Math.abs(ability.percentile);
+      abilityMap[key].count += 1;
+    });
+
+    const abilityDifferences = Object.values(abilityMap).map((entry) => {
+      const averagePercentile = entry.combinedPercentile / entry.count;
+      const difference = averagePercentile - entry.overallPercentile;
+      return {
+        character: entry.character,
+        name: entry.name,
+        difference,
+      };
+    });
+
+    res.json(abilityDifferences);
+  } catch (error) {
+    console.error('Error fetching abilities:', error.message);
+    res.status(500).json({ error: 'Failed to fetch abilities' });
+  }
+});
+
+app.get('/:character', (req, res) => {
+  res.send('character page');
 });

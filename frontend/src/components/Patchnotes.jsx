@@ -26,6 +26,8 @@ const Patchnotes = ({ game }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [currentReply, setCurrentReply] = useState({ message: '', replyToId: null, commentId: null, parentReplyId: null });
   const [filter, setFilter] = useState('all');
+  const [abilityDifferences, setAbilityDifferences] = useState({});
+  const [sortByPercentile, setSortByPercentile] = useState(false);
   const navigate = useNavigate();
 
   const classifyUpdate = (text) => {
@@ -106,8 +108,26 @@ const Patchnotes = ({ game }) => {
       }
     };
 
+    const fetchAbilityDifferences = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/abilities');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        const differences = {};
+        data.forEach(diff => {
+          differences[diff.character] = diff.difference;
+        });
+        setAbilityDifferences(differences);
+      } catch (error) {
+        console.error('Error fetching ability differences:', error);
+      }
+    };
+
     fetchPatchnotes();
     fetchAssociations();
+    fetchAbilityDifferences();
   }, [game, year, month, version]);
 
   const submitComment = async (comment) => {
@@ -268,10 +288,28 @@ const Patchnotes = ({ game }) => {
   };
 
   const renderUpdates = (updates) => {
-    return updates.map((update, index) => (
-      <div key={index}>
+    let sortedUpdates = updates;
 
-        {update.title && <h3 onClick={() => navigate(`/${update.title}`)}>{update.title}</h3>}
+    if (sortByPercentile) {
+      sortedUpdates = updates.slice().sort((a, b) => {
+        const diffA = abilityDifferences[a.title] || 0;
+        const diffB = abilityDifferences[b.title] || 0;
+        return diffB - diffA;
+      });
+    }
+
+    return sortedUpdates.map((update, index) => (
+      <div key={index}>
+        {update.title && (
+          <h3 onClick={() => navigate(`/${update.title}`)}>
+            {update.title}
+            {abilityDifferences[update.title] !== undefined && (
+              <span>
+                {abilityDifferences[update.title].toFixed(1) >= 0 ? ` +${abilityDifferences[update.title].toFixed(1)}` : ` ${abilityDifferences[update.title].toFixed(1)}`}
+              </span>
+            )}
+          </h3>
+        )}
         {update.generalUpdates && update.generalUpdates.length > 0 && (
           <div>
             <ul>
@@ -333,6 +371,9 @@ const Patchnotes = ({ game }) => {
           <button onClick={() => setFilter('all')}>All</button>
           <button onClick={() => setFilter('buff')}>Buffs</button>
           <button onClick={() => setFilter('nerf')}>Nerfs</button>
+          <button onClick={() => setSortByPercentile(!sortByPercentile)}>
+            {sortByPercentile ? 'Sort by Default' : 'Sort by Strength'}
+          </button>
         </div>
         {game === 'overwatch' ? (
           <>
