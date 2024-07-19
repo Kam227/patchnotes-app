@@ -20,6 +20,7 @@
     "express-session": "^1.18.0",
     "html-tokenize": "^2.0.1",
     "morgan": "^1.10.0",
+    "p-limit": "^6.1.0",
     "pg": "^8.12.0",
     "pg-hstore": "^2.3.4",
     "puppeteer": "^22.13.0",

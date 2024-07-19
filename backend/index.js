@@ -8,6 +8,8 @@ const urls_OW = require('./supplements/getPatchNotesUrls_OW');
 const details_OW = require('./supplements/getPatchNotesDetails_OW');
 const urls_LOL = require('./supplements/getPatchNotesUrls_LOL');
 const details_LOL = require('./supplements/getPatchNotesDetails_LOL');
+const stats_OW = require('./supplements/getCharacterDetails_OW');
+const stats_LOL = require('./supplements/getCharacterDetails_LOL');
 const userRoutes = require('./routes/users');
 
 const OVERWATCH_URL = 'https://overwatch.blizzard.com/en-us/news/patch-notes/';
@@ -63,6 +65,20 @@ app.listen(PORT, async () => {
     }
   } catch (error) {
     console.error('Error while scraping and storing League of Legends patch notes:', error.message);
+  }
+
+  try {
+    await stats_OW.getCharacterDetails_OW();
+    console.log('Initial scraping completed.');
+  } catch (error) {
+    console.error('Error during initial scraping:', error.message);
+  }
+
+  try {
+    await stats_LOL.getCharacterDetails_LOL();
+    console.log('Initial scraping completed.');
+  } catch (error) {
+    console.error('Error during initial scraping:', error.message);
   }
 });
 
@@ -436,21 +452,12 @@ app.get('/:character', (req, res) => {
   res.send('character page');
 });
 
-app.get('/stats', async (req, res) => {
-  try {
-    await getCharacterDetails_OW();
-    res.json({ message: 'Scraping and storing data completed successfully.' });
-  } catch (error) {
-    console.error('Error in /stats route:', error.message);
-    res.status(500).json({ error: 'Failed to scrape data' });
-  }
-});
-
 app.get('/stats/:character', async (req, res) => {
   const { character } = req.params;
   try {
     const stats = await prisma.statistics.findUnique({
-      where: { character }
+      where: { character },
+      include: { pickrateHistory: true }
     });
     if (stats) {
       res.json(stats);
