@@ -35,7 +35,7 @@ const getPatchNotesDetails_LOL = async (url, version, prefix) => {
             championUpdate.abilityUpdates = [];
             $(element).find('.change-detail-title').each((_, ability) => {
                 const abilityUpdate = {
-                    title: $(ability).text().trim(),
+                    name: $(ability).text().trim(),
                     content: []
                 };
                 $(ability).next('ul').find('li').each((_, li) => {

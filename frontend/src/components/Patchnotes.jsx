@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import { UserContext } from '../../UserContext';
+import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import '../styles/Patchnotes.css';
 
@@ -25,6 +26,7 @@ const Patchnotes = ({ game }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [currentReply, setCurrentReply] = useState({ message: '', replyToId: null, commentId: null, parentReplyId: null });
   const [filter, setFilter] = useState('all');
+  const navigate = useNavigate();
 
   const classifyUpdate = (text) => {
     for (let keyword of associations.nerf) {
@@ -268,7 +270,8 @@ const Patchnotes = ({ game }) => {
   const renderUpdates = (updates) => {
     return updates.map((update, index) => (
       <div key={index}>
-        {update.title && <h3>{update.title}</h3>}
+
+        {update.title && <h3 onClick={() => navigate(`/${update.title}`)}>{update.title}</h3>}
         {update.generalUpdates && update.generalUpdates.length > 0 && (
           <div>
             <ul>

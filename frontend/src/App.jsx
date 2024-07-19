@@ -7,6 +7,7 @@ import Patchnotes from './components/Patchnotes';
 import LoginForm from './components/LoginForm';
 import SignupForm from './components/SignupForm';
 import DevTools from './components/DevTools';
+import CharacterPage from './components/CharacterPage';
 import { UserContext } from '../UserContext';
 
 function App() {
@@ -34,8 +35,8 @@ function App() {
           <Route path="/game/overwatch" element={<PatchSelection game="overwatch" />} />
           <Route path="/game/league-of-legends" element={<PatchSelection game="league-of-legends" />} />
           <Route path="/patchnotes/overwatch/:year/:month" element={<Patchnotes game="overwatch" />} />
-          <Route path="/patchnotes/league-of-legends/:version" element={<Patchnotes game="league of legends" />} />
-          <Route path="/game/patch/:id" element={<p>Character Statistics</p>} />
+          <Route path="/patchnotes/league-of-legends/:version" element={<Patchnotes game="league-of-legends" />} />
+          <Route path="/:character" element={<CharacterPage />} />
         </Routes>
       </Router>
     </UserContext.Provider>

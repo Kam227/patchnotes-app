@@ -122,3 +122,21 @@ model Association {
   keyword String
   classifier String
 }
+
+model Statistics {
+  id Int @id @default(autoincrement())
+  character String @unique
+  pickrate Int
+  winrate Int
+  banrate Int?
+  kda Int?
+  pickrateHistory PickrateHistory[]
+}
+
+model PickrateHistory {
+  id Int @id @default(autoincrement())
+  timestamp DateTime @default(now())
+  value Float
+  statisticsId Int
+  statistics Statistics @relation(fields: [statisticsId], references: [id])
+}
