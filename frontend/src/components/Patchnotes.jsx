@@ -26,6 +26,8 @@ const Patchnotes = ({ game }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [currentReply, setCurrentReply] = useState({ message: '', replyToId: null, commentId: null, parentReplyId: null });
   const [filter, setFilter] = useState('all');
+  const [abilityDifferences, setAbilityDifferences] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   const classifyUpdate = (text) => {
@@ -106,8 +108,24 @@ const Patchnotes = ({ game }) => {
       }
     };
 
+    const fetchAbilityDifferences = async () => {
+      setLoading(true)
+      try {
+        const response = await fetch('http://localhost:3000/abilities');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        setAbilityDifferences(data);
+      } catch (error) {
+        console.error('Error fetching ability differences:', error);
+      }
+      setLoading(false)
+    };
+
     fetchPatchnotes();
     fetchAssociations();
+    fetchAbilityDifferences();
   }, [game, year, month, version]);
 
   const submitComment = async (comment) => {
@@ -270,8 +288,11 @@ const Patchnotes = ({ game }) => {
   const renderUpdates = (updates) => {
     return updates.map((update, index) => (
       <div key={index}>
-
-        {update.title && <h3 onClick={() => navigate(`/${update.title}`)}>{update.title}</h3>}
+        {update.title && (
+          <h3 onClick={() => navigate(`/${update.title}`)}>
+            {update.title}
+          </h3>
+        )}
         {update.generalUpdates && update.generalUpdates.length > 0 && (
           <div>
             <ul>
@@ -283,16 +304,33 @@ const Patchnotes = ({ game }) => {
         )}
         {update.abilityUpdates && update.abilityUpdates.length > 0 && (
           <div>
-            {update.abilityUpdates.map((ability, idx) => (
-              <div key={idx}>
-                <h5>{ability.name}</h5>
-                <ul>
-                  {ability.content?.map((detail, i) => (
-                    <li key={i}>{detail.text}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            {update.abilityUpdates.map((ability, idx) => {
+              const abilityDiff = abilityDifferences.find(ad => ad.character === update.title && ad.name === ability.name);
+              const historicalMessage = abilityDiff && abilityDiff.count > 1
+                ? `The ability has changed by ${abilityDiff.difference.toFixed(1)}% relative to other patches`
+                : 'Not enough data for historical statistics';
+              return (
+                <div key={idx}>
+                  <h5>
+                    {ability.name}
+                    {abilityDiff && (
+                      <span>
+                        {` (Percentile: ${abilityDiff.percentile.toFixed(1)}, `}
+                        <span title={historicalMessage}>
+                          {`Historical: ${abilityDiff.difference >= 0 ? `+${abilityDiff.difference.toFixed(1)}` : abilityDiff.difference.toFixed(1)}`}
+                        </span>
+                        {')'}
+                      </span>
+                    )}
+                  </h5>
+                  <ul>
+                    {ability.content?.map((detail, i) => (
+                      <li key={i}>{detail.text}</li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
           </div>
         )}
         {update.content && update.content.length > 0 && (
@@ -328,28 +366,33 @@ const Patchnotes = ({ game }) => {
   return (
     <div className='patchnotes'>
       <Navbar />
-      <div className='patches'>
-        <div className="filter-buttons">
-          <button onClick={() => setFilter('all')}>All</button>
-          <button onClick={() => setFilter('buff')}>Buffs</button>
-          <button onClick={() => setFilter('nerf')}>Nerfs</button>
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <div className='patches'>
+          <div className="filter-buttons">
+            <button onClick={() => setFilter('all')}>All</button>
+            <button onClick={() => setFilter('buff')}>Buffs</button>
+            <button onClick={() => setFilter('nerf')}>Nerfs</button>
+          </div>
+          {game === 'overwatch' ? (
+            <>
+              {renderCategories('Tank', patchnotes.details.tank)}
+              {renderCategories('Damage', patchnotes.details.damage)}
+              {renderCategories('Support', patchnotes.details.support)}
+              {renderCategories('Map', patchnotes.details.mapUpdates)}
+              {renderCategories('Bug', patchnotes.details.bugFixes)}
+            </>
+          ) : (
+            <>
+              {renderCategories('Champion', patchnotes.details.champions)}
+              {renderCategories('Item', patchnotes.details.items)}
+              {renderCategories('Bug', patchnotes.details.bugFixes)}
+            </>
+          )}
         </div>
-        {game === 'overwatch' ? (
-          <>
-            {renderCategories('Tank', patchnotes.details.tank)}
-            {renderCategories('Damage', patchnotes.details.damage)}
-            {renderCategories('Support', patchnotes.details.support)}
-            {renderCategories('Map', patchnotes.details.mapUpdates)}
-            {renderCategories('Bug', patchnotes.details.bugFixes)}
-          </>
-        ) : (
-          <>
-            {renderCategories('Champion', patchnotes.details.champions)}
-            {renderCategories('Item', patchnotes.details.items)}
-            {renderCategories('Bug', patchnotes.details.bugFixes)}
-          </>
-        )}
-      </div>
+      )}
+
       <div className='comments'>
         <h2>Comments</h2>
         <div>
@@ -388,6 +431,7 @@ const Patchnotes = ({ game }) => {
           </form>
         </div>
       </div>
+
       {modalOpen && (
         <>
           <div className='overlay' onClick={() => setModalOpen(false)}></div>

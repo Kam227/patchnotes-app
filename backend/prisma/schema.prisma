@@ -33,6 +33,7 @@ model Patchnotes_ow {
   text String
   details Json
   comments Comment_ow[]
+  abilities Ability[]
 }
 
 model Patchnotes_lol {
@@ -40,6 +41,7 @@ model Patchnotes_lol {
   text String
   details Json
   comments Comment_lol[]
+  abilities Ability[]
 }
 
 model Comment_ow {
@@ -139,4 +141,16 @@ model PickrateHistory {
   value Float
   statisticsId Int
   statistics Statistics @relation(fields: [statisticsId], references: [id])
+}
+
+model Ability {
+  id Int @id @default(autoincrement())
+  patchIdOW Int?
+  patchIdLOL Int?
+  character String
+  name String
+  percentile Float
+  overallPercentile Float?
+  patchnotes_ow Patchnotes_ow? @relation(fields: [patchIdOW], references: [id])
+  patchnotes_lol Patchnotes_lol? @relation(fields: [patchIdLOL], references: [id])
 }
