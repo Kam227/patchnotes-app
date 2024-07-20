@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-const parseAbilityUpdatesLOL = async (patchId, character, abilityUpdates) => {
+const parseAbilityUpdates = async (patchId, character, abilityUpdates) => {
     if (!Array.isArray(abilityUpdates)) {
         console.warn(`Warning: abilityUpdates is not an array for patchId ${patchId} and character ${character}`);
         return;
@@ -65,7 +65,7 @@ const getCharacterAbilities_LOL = async () => {
             for (const champion of champions) {
                 if (champion.abilityUpdates && Array.isArray(champion.abilityUpdates)) {
                     hasValidUpdates = true;
-                    await parseAbilityUpdatesLOL(patch.id, champion.title, champion.abilityUpdates);
+                    await parseAbilityUpdates(patch.id, champion.title, champion.abilityUpdates);
                 } else {
                     console.warn(`Warning: abilityUpdates is not an array for patchId ${patch.id}`);
                 }

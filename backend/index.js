@@ -497,27 +497,27 @@ app.get('/abilities', async (req, res) => {
     const abilityMap = {};
 
     abilities.forEach((ability) => {
-      const key = `${ability.character}-${ability.name}-${ability.patchIdOW || ability.patchIdLOL}`;
+      const key = `${ability.character}-${ability.name}`;
       if (!abilityMap[key]) {
         abilityMap[key] = {
           character: ability.character,
           name: ability.name,
-          combinedPercentile: 0,
-          count: 0,
           overallPercentile: ability.overallPercentile,
+          count: 0,
         };
       }
-      abilityMap[key].combinedPercentile += Math.abs(ability.percentile);
       abilityMap[key].count += 1;
     });
 
-    const abilityDifferences = Object.values(abilityMap).map((entry) => {
-      const averagePercentile = entry.combinedPercentile / entry.count;
-      const difference = averagePercentile - entry.overallPercentile;
+    const abilityDifferences = abilities.map((ability) => {
+      const key = `${ability.character}-${ability.name}`;
+      const difference = ability.percentile - abilityMap[key].overallPercentile;
       return {
-        character: entry.character,
-        name: entry.name,
+        character: ability.character,
+        name: ability.name,
+        percentile: ability.percentile,
         difference,
+        count: abilityMap[key].count,
       };
     });
 
