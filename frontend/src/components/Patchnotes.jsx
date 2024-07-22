@@ -260,6 +260,10 @@ const Patchnotes = ({ game }) => {
     setModalOpen(true);
   };
 
+  const handleCharacterClick = (character) => {
+    navigate(`/${character}`, { state: { character, id: patchnotes.id, game } });
+  };
+
   const filterUpdates = (updates) => {
     return updates.map(update => {
       const generalUpdates = update.generalUpdates?.map(generalUpdate => ({
@@ -289,7 +293,7 @@ const Patchnotes = ({ game }) => {
     return updates.map((update, index) => (
       <div key={index}>
         {update.title && (
-          <h3 onClick={() => navigate(`/${update.title}`)}>
+          <h3 onClick={() => handleCharacterClick(update.title)}>
             {update.title}
           </h3>
         )}
