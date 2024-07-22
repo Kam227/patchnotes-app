@@ -308,16 +308,18 @@ const Patchnotes = ({ game }) => {
               const abilityDiff = abilityDifferences.find(ad => ad.character === update.title && ad.name === ability.name);
               const historicalMessage = abilityDiff && abilityDiff.count > 1
                 ? `The ability has changed by ${abilityDiff.difference.toFixed(1)}% relative to other patches`
-                : 'Not enough data for historical statistics';
+                : 'Insufficient data';
               return (
                 <div key={idx}>
                   <h5>
                     {ability.name}
                     {abilityDiff && (
                       <span>
-                        {` (Percentile: ${abilityDiff.percentile.toFixed(1)}, `}
+                        {` (Percentage change: ${abilityDiff.percentile.toFixed(1)}, `}
                         <span title={historicalMessage}>
-                          {`Historical: ${abilityDiff.difference >= 0 ? `+${abilityDiff.difference.toFixed(1)}` : abilityDiff.difference.toFixed(1)}`}
+                          {abilityDiff.count > 1 ?
+                            `Historical change: ${abilityDiff.difference >= 0 ? `+${abilityDiff.difference.toFixed(1)}` : abilityDiff.difference.toFixed(1)}` :
+                            'Historical change: Not enough data'}
                         </span>
                         {')'}
                       </span>
