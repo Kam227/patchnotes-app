@@ -2,6 +2,8 @@ import React, { useEffect, useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import { UserContext } from '../../UserContext';
 import { useNavigate } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faThumbsUp } from '@fortawesome/free-solid-svg-icons';
 import Navbar from './Navbar';
 import '../styles/Patchnotes.css';
 
@@ -250,6 +252,14 @@ const Patchnotes = ({ game }) => {
           comment.id === commentId ? { ...comment, voteCount: updatedVote.voteCount } : comment
         ),
       }));
+      // css
+      const icon = document.getElementById(`thumbs-up-${commentId}`);
+      if (icon) {
+        icon.classList.add('thumbs-up-animate');
+        setTimeout(() => {
+          icon.classList.remove('thumbs-up-animate');
+        }, 1000);
+      }
     } catch (error) {
       console.error(error);
     }
@@ -258,6 +268,10 @@ const Patchnotes = ({ game }) => {
   const openReplyModal = (commentId, replyToId, parentReplyId) => {
     setCurrentReply({ message: '', replyToId, commentId, parentReplyId });
     setModalOpen(true);
+  };
+
+  const handleCharacterClick = (character) => {
+    navigate(`/${character}`, { state: { character, id: patchnotes.id, game } });
   };
 
   const filterUpdates = (updates) => {
@@ -289,7 +303,7 @@ const Patchnotes = ({ game }) => {
     return updates.map((update, index) => (
       <div key={index}>
         {update.title && (
-          <h3 onClick={() => navigate(`/${update.title}`)}>
+          <h3 onClick={() => handleCharacterClick(update.title)}>
             {update.title}
           </h3>
         )}
@@ -348,6 +362,32 @@ const Patchnotes = ({ game }) => {
     ));
   };
 
+  const renderBugFixes = (bugFixes) => {
+    if (Array.isArray(bugFixes)) {
+      return (
+        <div>
+          <h2>Bug Fixes</h2>
+          <ul>
+            {bugFixes.map((fix, index) => (
+              <li key={index}>{fix}</li>
+            ))}
+          </ul>
+        </div>
+      );
+    } else {
+      return (
+        <div>
+          <h2>Bug Fixes</h2>
+          <ul>
+            {bugFixes.map((fix, index) => (
+              <li key={index}>{fix.name}: {fix.content.join(', ')}</li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+  };
+
   const renderCategories = (category, notes) => (
     <>
       <h2>{category} Updates</h2>
@@ -383,13 +423,13 @@ const Patchnotes = ({ game }) => {
               {renderCategories('Damage', patchnotes.details.damage)}
               {renderCategories('Support', patchnotes.details.support)}
               {renderCategories('Map', patchnotes.details.mapUpdates)}
-              {renderCategories('Bug', patchnotes.details.bugFixes)}
+              {renderBugFixes(patchnotes.details.bugFixes)}
             </>
           ) : (
             <>
               {renderCategories('Champion', patchnotes.details.champions)}
               {renderCategories('Item', patchnotes.details.items)}
-              {renderCategories('Bug', patchnotes.details.bugFixes)}
+              {renderBugFixes(patchnotes.details.bugFixes)}
             </>
           )}
         </div>
@@ -401,8 +441,14 @@ const Patchnotes = ({ game }) => {
           {patchnotes.comments?.map((comment) => (
             <div key={comment.id} className='comment'>
               <p>{comment.user.username}: {comment.message}</p>
+              <img src={`https://ui-avatars.com/api/?name=${comment.user.username}&background=random`} alt={`${comment.user.username}'s avatar`} className='avatar' />
               <div className='vote'>
-                <p onClick={() => upvoteComment(comment.id)}>👍</p>
+                <FontAwesomeIcon
+                  id={`thumbs-up-${comment.id}`}
+                  icon={faThumbsUp}
+                  onClick={() => upvoteComment(comment.id)}
+                  style={{ cursor: 'pointer' }}
+                />
                 <p>{comment.voteCount}</p>
               </div>
               <p onClick={() => deleteComment(comment.id)}>🗑️</p>

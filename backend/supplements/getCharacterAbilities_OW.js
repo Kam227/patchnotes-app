@@ -35,15 +35,15 @@ const parseAbilityUpdates = async (patchId, character, abilityUpdates) => {
                                 }
                             });
                         } else {
-                            console.log(`Ability already exists for patchId ${patchId}, character ${character}, and ability ${update.name}`);
+                            continue
                         }
                     } else {
-                        console.log(`Warning: Invalid percentile change for patchId ${patchId} and ability ${update.name}`);
+                        continue
                     }
                 }
             }
         } else {
-            console.log(`Warning: Invalid ability update format for patchId ${patchId} and character ${character}`);
+            continue
         }
     }
 };
@@ -69,14 +69,10 @@ const getCharacterAbilities_OW = async () => {
                             hasValidUpdates = true;
                             await parseAbilityUpdates(patch.id, hero.title, hero.abilityUpdates);
                         } else {
-                            console.log(`Warning: abilityUpdates is not an array for patchId ${patch.id} in role ${role}`);
+                            continue
                         }
                     }
                 }
-            }
-
-            if (!hasValidUpdates) {
-                console.log(`Skipping patchId ${patch.id} as it has no valid ability updates.`);
             }
         }
     } catch (error) {

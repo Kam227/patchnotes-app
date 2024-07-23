@@ -34,6 +34,8 @@ model Patchnotes_ow {
   details Json
   comments Comment_ow[]
   abilities Ability[]
+  nerfs Nerf[]
+  buffs Buff[]
 }
 
 model Patchnotes_lol {
@@ -42,6 +44,8 @@ model Patchnotes_lol {
   details Json
   comments Comment_lol[]
   abilities Ability[]
+  nerfs Nerf[]
+  buffs Buff[]
 }
 
 model Comment_ow {
@@ -153,4 +157,24 @@ model Ability {
   overallPercentile Float?
   patchnotes_ow Patchnotes_ow? @relation(fields: [patchIdOW], references: [id])
   patchnotes_lol Patchnotes_lol? @relation(fields: [patchIdLOL], references: [id])
+}
+
+model Nerf {
+  id Int @id @default(autoincrement())
+  character String
+  patchIdOW Int?
+  patchIdLOL Int?
+  details Json
+  Patchnotes_ow Patchnotes_ow? @relation(fields: [patchIdOW], references: [id], map: "Nerf_patchIdOW_fkey")
+  Patchnotes_lol Patchnotes_lol? @relation(fields: [patchIdLOL], references: [id], map: "Nerf_patchIdLOL_fkey")
+}
+
+model Buff {
+  id Int @id @default(autoincrement())
+  character String
+  patchIdOW Int?
+  patchIdLOL Int?
+  details Json
+  Patchnotes_ow Patchnotes_ow? @relation(fields: [patchIdOW], references: [id], map: "Buff_patchIdOW_fkey")
+  Patchnotes_lol Patchnotes_lol? @relation(fields: [patchIdLOL], references: [id], map: "Buff_patchIdLOL_fkey")
 }

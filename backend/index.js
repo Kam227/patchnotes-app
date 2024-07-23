@@ -49,14 +49,146 @@ app.use('/users', userRoutes);
 
 const PORT = 3000;
 
+const classifyUpdate = (text, associations) => {
+  for (let keyword of associations.nerf) {
+    if (text.toLowerCase().includes(keyword[0].toLowerCase()) && text.toLowerCase().includes(keyword[1].toLowerCase())) {
+      return 'nerf';
+    }
+  }
+  for (let keyword of associations.buff) {
+    if (text.toLowerCase().includes(keyword[0].toLowerCase()) && text.toLowerCase().includes(keyword[1].toLowerCase())) {
+      return 'buff';
+    }
+  }
+  return 'neutral';
+};
+
+const classifyAndStore = (updates, category, patchId, associations, game) => {
+  const nerfs = [];
+  const buffs = [];
+
+  updates.forEach((update) => {
+    console.log(`Processing update for character: ${update.title || category}`);
+    const classifiedUpdate = {
+      character: update.title || category,
+      details: [],
+    };
+    if (game === 'lol') {
+      classifiedUpdate.patchIdLOL = patchId;
+    } else {
+      classifiedUpdate.patchIdOW = patchId;
+    }
+
+    if (update.abilityUpdates) {
+      console.log('Processing ability updates...');
+      update.abilityUpdates.forEach((abilityUpdate) => {
+        abilityUpdate.content.forEach((content) => {
+          const classification = classifyUpdate(content, associations);
+          if (classification === 'nerf') {
+            classifiedUpdate.details.push({ ability: abilityUpdate.name, content, type: 'nerf' });
+          } else if (classification === 'buff') {
+            classifiedUpdate.details.push({ ability: abilityUpdate.name, content, type: 'buff' });
+          }
+        });
+      });
+    } else {
+      console.log(`No ability updates found for character: ${update.title || category}`);
+    }
+
+    if (update.generalUpdates) {
+      console.log('Processing general updates...');
+      update.generalUpdates.forEach((generalUpdate) => {
+        const classification = classifyUpdate(generalUpdate, associations);
+        if (classification === 'nerf') {
+          classifiedUpdate.details.push({ content: generalUpdate, type: 'nerf' });
+        } else if (classification === 'buff') {
+          classifiedUpdate.details.push({ content: generalUpdate, type: 'buff' });
+        }
+      });
+    } else {
+      console.log(`No general updates found for character: ${update.title || category}`);
+    }
+
+    if (classifiedUpdate.details.length) {
+      if (classifiedUpdate.details.some(detail => detail.type === 'nerf')) {
+        nerfs.push(classifiedUpdate);
+      }
+      if (classifiedUpdate.details.some(detail => detail.type === 'buff')) {
+        buffs.push(classifiedUpdate);
+      }
+    }
+  });
+
+  return { nerfs, buffs };
+};
+
+const processPatchNotes = async (game, patches, associations) => {
+  for (const patch of patches) {
+    console.log(`Processing patch: ${patch.id}`);
+    const patchDetails = await prisma[`patchnotes_${game}`].findUnique({
+      where: { id: patch.id },
+    });
+    if (!patchDetails) {
+      console.log(`No patch details found for patch: ${patch.id}`);
+      continue;
+    }
+
+    console.log(`Patch details for patch ${patch.id}:`);
+
+    const allCategories = ['tank', 'damage', 'support', 'champions'];
+    let allNerfs = [];
+    let allBuffs = [];
+
+    allCategories.forEach((category) => {
+      if (patchDetails.details[category] && patchDetails.details[category].length) {
+        console.log(`Processing updates for category: ${category}`);
+        const { nerfs, buffs } = classifyAndStore(patchDetails.details[category], category, patch.id, associations, game);
+        allNerfs = allNerfs.concat(nerfs);
+        allBuffs = allBuffs.concat(buffs);
+      } else {
+        console.log(`No updates for category: ${category}`);
+      }
+    });
+
+    console.log(`Nerfs: ${JSON.stringify(allNerfs)}`);
+    console.log(`Buffs: ${JSON.stringify(allBuffs)}`);
+
+    for (const nerf of allNerfs) {
+      try {
+        await prisma.nerf.create({ data: nerf });
+        console.log(`Nerf created: ${JSON.stringify(nerf)}`);
+      } catch (error) {
+        console.error(`Failed to create nerf: ${error.message}`);
+      }
+    }
+    for (const buff of allBuffs) {
+      try {
+        await prisma.buff.create({ data: buff });
+        console.log(`Buff created: ${JSON.stringify(buff)}`);
+      } catch (error) {
+        console.error(`Failed to create buff: ${error.message}`);
+      }
+    }
+  }
+};
+
 app.listen(PORT, async () => {
   console.log(`App is listening on http://localhost:${PORT}`);
+
+  const associationsResponse = await prisma.association.findMany();
+  const associations = {
+    nerf: associationsResponse.filter(a => a.type === 'nerf').map(a => [a.keyword, a.classifier]),
+    buff: associationsResponse.filter(a => a.type === 'buff').map(a => [a.keyword, a.classifier]),
+  };
 
   try {
     const owUrls = await urls_OW.getPatchNotesUrls_OW();
     for (const { year, month } of owUrls) {
       await details_OW.getPatchNotesDetails_OW(OVERWATCH_URL, year, month);
     }
+
+    const owPatches = await prisma.patchnotes_ow.findMany();
+    await processPatchNotes('ow', owPatches, associations);
   } catch (error) {
     console.error('Error while scraping and storing Overwatch patch notes:', error.message);
   }
@@ -66,6 +198,9 @@ app.listen(PORT, async () => {
     for (const { version, prefix } of lolUrls) {
       await details_LOL.getPatchNotesDetails_LOL(LEAGUE_OF_LEGENDS_URL, version, prefix);
     }
+
+    const lolPatches = await prisma.patchnotes_lol.findMany();
+    await processPatchNotes('lol', lolPatches, associations);
   } catch (error) {
     console.error('Error while scraping and storing League of Legends patch notes:', error.message);
   }
@@ -102,7 +237,7 @@ app.listen(PORT, async () => {
     await calc.calculateOverallPercentile();
     console.log('Overall percentile calculation completed.');
   } catch (error) {
-      console.error('Error during overall percentile calculation:', error.message);
+    console.error('Error during overall percentile calculation:', error.message);
   }
 });
 
@@ -471,25 +606,6 @@ app.delete('/associations/:type/:index', async (req, res) => {
   }
 });
 
-// character stats
-app.get('/stats/:character', async (req, res) => {
-  const { character } = req.params;
-  try {
-    const stats = await prisma.statistics.findUnique({
-      where: { character },
-      include: { pickrateHistory: true }
-    });
-    if (stats) {
-      res.json(stats);
-    } else {
-      res.status(404).json({ error: 'Character not found' });
-    }
-  } catch (error) {
-    console.error('Error fetching statistics:', error.message);
-    res.status(500).json({ error: 'Failed to fetch statistics' });
-  }
-});
-
 // abilities
 app.get('/abilities', async (req, res) => {
   try {
@@ -511,7 +627,7 @@ app.get('/abilities', async (req, res) => {
 
     const abilityDifferences = abilities.map((ability) => {
       const key = `${ability.character}-${ability.name}`;
-      const difference = ability.percentile - abilityMap[key].overallPercentile;
+      const difference = Math.abs(ability.percentile) - Math.abs(abilityMap[key].overallPercentile);
       return {
         character: ability.character,
         name: ability.name,
@@ -525,6 +641,54 @@ app.get('/abilities', async (req, res) => {
   } catch (error) {
     console.error('Error fetching abilities:', error.message);
     res.status(500).json({ error: 'Failed to fetch abilities' });
+  }
+});
+
+// character stats
+app.get('/stats/:character', async (req, res) => {
+  const { character } = req.params;
+  try {
+    const stats = await prisma.statistics.findUnique({
+      where: { character },
+      include: { pickrateHistory: true }
+    });
+    if (stats) {
+      res.json(stats);
+    } else {
+      res.status(404).json({ error: 'Character not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching statistics:', error.message);
+    res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
+app.post('/changes', async (req, res) => {
+  const { patchId, game } = req.body;
+  try {
+    const nerfs = await prisma.nerf.findMany({
+      where: game === 'lol' ? { patchIdLOL: patchId } : { patchIdOW: patchId },
+    });
+
+    const buffs = await prisma.buff.findMany({
+      where: game === 'lol' ? { patchIdLOL: patchId } : { patchIdOW: patchId },
+    });
+
+    const characters = [...new Set([...nerfs.map(n => n.character), ...buffs.map(b => b.character)])];
+    const pickrateHistory = {};
+
+    for (const character of characters) {
+      const stats = await prisma.statistics.findUnique({
+        where: { character },
+        include: { pickrateHistory: true },
+      });
+      pickrateHistory[character] = stats ? stats.pickrateHistory : [];
+    }
+
+    res.json({ nerfs, buffs, pickrateHistory });
+  } catch (error) {
+    console.error('Error fetching nerfs and buffs:', error.message);
+    res.status(500).json({ error: 'Failed to fetch nerfs and buffs' });
   }
 });
 
