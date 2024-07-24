@@ -7,11 +7,10 @@ import 'chart.js/auto';
 const CharacterPage = () => {
     const { character } = useParams();
     const [stats, setStats] = useState(null);
-    const [abilities, setAbilities] = useState([]);
+    const [patchData, setPatchData] = useState([]);
     const [winrateHistory, setWinrateHistory] = useState([]);
     const [loadingStats, setLoadingStats] = useState(true);
-    const [loadingAbilities, setLoadingAbilities] = useState(true);
-    const [loadingWinrateHistory, setLoadingWinrateHistory] = useState(true);
+    const [loadingPatchData, setLoadingPatchData] = useState(true);
     const [winratePredictor, setWinratePredictor] = useState(0);
     const location = useLocation();
     const { id } = location.state || {};
@@ -33,20 +32,20 @@ const CharacterPage = () => {
     }, [character]);
 
     useEffect(() => {
-        const fetchAbilities = async () => {
+        const fetchPatchData = async () => {
             try {
-                const response = await fetch(`http://localhost:3000/abilities?patchId=${id}`);
+                const response = await fetch(`http://localhost:3000/patchdata/${id}`);
                 const data = await response.json();
-                setAbilities(data);
-                setLoadingAbilities(false);
+                setPatchData(data);
+                setLoadingPatchData(false);
             } catch (error) {
-                console.error('Error fetching abilities:', error);
-                setLoadingAbilities(false);
+                console.error('Error fetching patch data:', error);
+                setLoadingPatchData(false);
             }
         };
 
         if (id) {
-            fetchAbilities();
+            fetchPatchData();
         }
     }, [id]);
 
@@ -56,10 +55,8 @@ const CharacterPage = () => {
                 const response = await fetch(`http://localhost:3000/winratehistory/${id}`);
                 const data = await response.json();
                 setWinrateHistory(data);
-                setLoadingWinrateHistory(false);
             } catch (error) {
                 console.error('Error fetching winrate history:', error);
-                setLoadingWinrateHistory(false);
             }
         };
 
@@ -68,9 +65,9 @@ const CharacterPage = () => {
         }
     }, [id]);
 
-    const calculateWinrateChangeRatio = (characterName) => {
-        const winrateChange = winrateHistory.find(item => item.character === characterName)?.winrateChange || 0;
-        const sumPercentiles = abilities.filter(ability => ability.character === characterName).reduce((acc, ability) => acc + ability.percentile, 0);
+    const calculateWinrateChangeRatio = (character) => {
+        const winrateChange = winrateHistory.find(item => item.character === character.character)?.winrateChange || 0;
+        const sumPercentiles = character.percentile;
 
         if (sumPercentiles === 0) {
             return 0;
@@ -81,22 +78,21 @@ const CharacterPage = () => {
 
     useEffect(() => {
         const calculateWinratePredictor = () => {
-            const validCharacters = abilities.filter(ability => ability.percentile !== 0).map(ability => ability.character);
-            const uniqueCharacters = [...new Set(validCharacters)];
-            const totalWinrateChangeRatio = uniqueCharacters.reduce((acc, characterName) => {
-                return acc + calculateWinrateChangeRatio(characterName);
+            const validCharacters = patchData.filter(character => character.percentile !== 0);
+            const totalWinrateChangeRatio = validCharacters.reduce((acc, character) => {
+                return acc + calculateWinrateChangeRatio(character);
             }, 0);
-            const winratePredictor = uniqueCharacters.length > 0 ? totalWinrateChangeRatio / uniqueCharacters.length : 0;
+            const winratePredictor = validCharacters.length > 0 ? totalWinrateChangeRatio / validCharacters.length : 0;
             setWinratePredictor(winratePredictor);
         };
 
-        if (abilities.length > 0 && winrateHistory.length > 0) {
+        if (patchData.length > 0 && winrateHistory.length > 0) {
             calculateWinratePredictor();
         }
-    }, [abilities, winrateHistory]);
+    }, [patchData, winrateHistory]);
 
-    const calculateUpdatedWinrateChange = (characterName) => {
-        const winrateChangeRatio = calculateWinrateChangeRatio(characterName);
+    const calculateUpdatedWinrateChange = (character) => {
+        const winrateChangeRatio = calculateWinrateChangeRatio(character);
         return winrateChangeRatio * winratePredictor;
     };
 
@@ -135,16 +131,20 @@ const CharacterPage = () => {
             ) : (
                 <p>Loading pickrate data...</p>
             )}
-            {loadingAbilities || loadingWinrateHistory ? (
+            {loadingPatchData ? (
                 <p>Loading patch data...</p>
             ) : (
                 <div>
-                    <div key={character}>
-                        <p>Name: {character}</p>
-                        <p>Percentile Sum: {abilities.reduce((acc, ability) => acc + ability.percentile, 0)}</p>
-                        <p>Winrate Change Ratio: {calculateWinrateChangeRatio(character)}</p>
-                        <p>Updated Winrate Change: {calculateUpdatedWinrateChange(character)}</p>
-                    </div>
+                    {patchData
+                        .filter(patchCharacter => patchCharacter.character === character)
+                        .map(patchCharacter => (
+                            <div key={patchCharacter.character}>
+                                <p>Name: {patchCharacter.character}</p>
+                                <p>Percentile Sum: {patchCharacter.percentile}</p>
+                                <p>Winrate Change Ratio: {calculateWinrateChangeRatio(patchCharacter)}</p>
+                                <p>Updated Winrate Change: {calculateUpdatedWinrateChange(patchCharacter)}</p>
+                            </div>
+                        ))}
                     <div>
                         <h2>Winrate Predictor: {winratePredictor}</h2>
                     </div>
