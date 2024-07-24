@@ -594,7 +594,6 @@ app.get('/associations', async (req, res) => {
   }
 });
 
-
 app.delete('/associations/:type/:index', async (req, res) => {
   const { type, index } = req.params;
   try {
@@ -630,19 +629,8 @@ app.get('/stats/:character', async (req, res) => {
 });
 
 app.get('/abilities', async (req, res) => {
-  const { patchId } = req.query;
-
   try {
-    let abilities;
-
-    if (patchId) {
-      abilities = await prisma.ability.findMany({
-        where: { patchIdLOL: parseInt(patchId) }
-      });
-    } else {
-      abilities = await prisma.ability.findMany();
-    }
-
+    const abilities = await prisma.ability.findMany();
     const abilityMap = {};
 
     abilities.forEach((ability) => {
@@ -677,6 +665,51 @@ app.get('/abilities', async (req, res) => {
   }
 });
 
+app.get('/patchdata/:patchId', async (req, res) => {
+  const { patchId } = req.params;
+
+  try {
+    const winrateData = await prisma.winrateChangeHistory.findMany({
+      where: { patchId: parseInt(patchId) }
+    });
+
+    const abilityData = await prisma.ability.findMany({
+      where: { patchIdLOL: parseInt(patchId) }
+    });
+
+    const combinedData = {};
+
+    winrateData.forEach(item => {
+      if (!combinedData[item.character]) {
+        combinedData[item.character] = {
+          character: item.character,
+          winrateChange: 0,
+          percentile: 0
+        };
+      }
+      combinedData[item.character].winrateChange += item.winrateChange;
+    });
+
+    abilityData.forEach(item => {
+      if (!combinedData[item.character]) {
+        combinedData[item.character] = {
+          character: item.character,
+          winrateChange: 0,
+          percentile: 0
+        };
+      }
+      combinedData[item.character].percentile += item.percentile;
+    });
+
+    const result = Object.values(combinedData);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching patch data:', error);
+    res.status(500).json({ error: 'Failed to fetch patch data' });
+  }
+});
+
 app.get('/winratehistory/:patchId', async (req, res) => {
   const { patchId } = req.params;
 
@@ -690,7 +723,6 @@ app.get('/winratehistory/:patchId', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch winrate history' });
   }
 });
-
 
 app.get('/:character', (req, res) => {
   res.send('character page');
