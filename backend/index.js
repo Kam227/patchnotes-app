@@ -143,7 +143,6 @@ const processPatchNotes = async (game, patches, associations) => {
     for (const nerf of allNerfs) {
       try {
         await prisma.nerf.create({ data: nerf });
-        console.log(`Nerf created: ${JSON.stringify(nerf)}`);
       } catch (error) {
         console.error(`Failed to create nerf: ${error.message}`);
       }
@@ -151,7 +150,6 @@ const processPatchNotes = async (game, patches, associations) => {
     for (const buff of allBuffs) {
       try {
         await prisma.buff.create({ data: buff });
-        console.log(`Buff created: ${JSON.stringify(buff)}`);
       } catch (error) {
         console.error(`Failed to create buff: ${error.message}`);
       }
@@ -194,35 +192,30 @@ app.listen(PORT, async () => {
 
   try {
     await stats_OW.getCharacterDetails_OW();
-    console.log('Initial scraping completed.');
   } catch (error) {
     console.error('Error during initial scraping:', error.message);
   }
 
   try {
     await stats_LOL.getCharacterDetails_LOL();
-    console.log('Initial scraping completed.');
   } catch (error) {
     console.error('Error during initial scraping:', error.message);
   }
 
   try {
     await abilities_OW.getCharacterAbilities_OW();
-    console.log('Initial ability parsing completed.');
   } catch (error) {
     console.error('Error during initial ability parsing:', error.message);
   }
 
   try {
     await abilities_LOL.getCharacterAbilities_LOL();
-    console.log('Initial ability parsing completed.');
   } catch (error) {
     console.error('Error during initial ability parsing:', error.message);
   }
 
   try {
     await calc.calculateOverallPercentile();
-    console.log('Overall percentile calculation completed.');
   } catch (error) {
     console.error('Error during overall percentile calculation:', error.message);
   }
