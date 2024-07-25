@@ -28,6 +28,7 @@ const Patchnotes = ({ game }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [currentReply, setCurrentReply] = useState({ message: '', replyToId: null, commentId: null, parentReplyId: null });
   const [filter, setFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [abilityDifferences, setAbilityDifferences] = useState([]);
   const [abilityPercentiles, setAbilityPercentiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -476,6 +477,11 @@ const Patchnotes = ({ game }) => {
     )) : null;
   };
 
+  const categoryButtons = {
+    'overwatch': ['Tank', 'Damage', 'Support', 'Map Updates', 'Bug Fixes'],
+    'league-of-legends': ['Champions', 'Items', 'Bug Fixes'],
+  };
+
   return (
     <div className='patchnotes'>
       <Navbar />
@@ -488,19 +494,24 @@ const Patchnotes = ({ game }) => {
             <button onClick={() => setFilter('buff')}>Buffs</button>
             <button onClick={() => setFilter('nerf')}>Nerfs</button>
           </div>
+          <div className="category-buttons">
+            {categoryButtons[game]?.map(category => (
+              <button key={category} onClick={() => setCategoryFilter(category)}>{category}</button>
+            ))}
+          </div>
           {game === 'overwatch' ? (
             <>
-              {renderCategories('Tank', patchnotes.details.tank)}
-              {renderCategories('Damage', patchnotes.details.damage)}
-              {renderCategories('Support', patchnotes.details.support)}
-              {renderCategories('Map', patchnotes.details.mapUpdates)}
-              {renderBugFixes(patchnotes.details.bugFixes)}
+              {categoryFilter === 'all' || categoryFilter === 'Tank' ? renderCategories('Tank', patchnotes.details.tank) : null}
+              {categoryFilter === 'all' || categoryFilter === 'Damage' ? renderCategories('Damage', patchnotes.details.damage) : null}
+              {categoryFilter === 'all' || categoryFilter === 'Support' ? renderCategories('Support', patchnotes.details.support) : null}
+              {categoryFilter === 'all' || categoryFilter === 'Map Updates' ? renderCategories('Map', patchnotes.details.mapUpdates) : null}
+              {categoryFilter === 'all' || categoryFilter === 'Bug Fixes' ? renderBugFixes(patchnotes.details.bugFixes) : null}
             </>
           ) : (
             <>
-              {renderCategories('Champion', patchnotes.details.champions)}
-              {renderCategories('Item', patchnotes.details.items)}
-              {renderBugFixes(patchnotes.details.bugFixes)}
+              {categoryFilter === 'all' || categoryFilter === 'Champions' ? renderCategories('Champion', patchnotes.details.champions) : null}
+              {categoryFilter === 'all' || categoryFilter === 'Items' ? renderCategories('Item', patchnotes.details.items) : null}
+              {categoryFilter === 'all' || categoryFilter === 'Bug Fixes' ? renderBugFixes(patchnotes.details.bugFixes) : null}
             </>
           )}
         </div>

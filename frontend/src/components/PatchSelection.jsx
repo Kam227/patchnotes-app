@@ -17,7 +17,6 @@ const PatchSelection = ({ game }) => {
                 }
                 const data = await response.json();
                 setPatchNotes(data);
-                console.log(data);
             } catch (error) {
                 console.error('Error fetching patch notes:', error);
                 setError('Failed to fetch patch notes. Please try again later.');
