@@ -29,6 +29,7 @@ const Patchnotes = ({ game }) => {
   const [currentReply, setCurrentReply] = useState({ message: '', replyToId: null, commentId: null, parentReplyId: null });
   const [filter, setFilter] = useState('all');
   const [abilityDifferences, setAbilityDifferences] = useState([]);
+  const [abilityPercentiles, setAbilityPercentiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -111,7 +112,6 @@ const Patchnotes = ({ game }) => {
     };
 
     const fetchAbilityDifferences = async () => {
-      setLoading(true)
       try {
         const response = await fetch('http://localhost:3000/abilities');
         if (!response.ok) {
@@ -122,12 +122,26 @@ const Patchnotes = ({ game }) => {
       } catch (error) {
         console.error('Error fetching ability differences:', error);
       }
-      setLoading(false)
+    };
+
+    const fetchAbilityPercentiles = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/abilities/percentiles');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        setAbilityPercentiles(data);
+      } catch (error) {
+        console.error('Error fetching ability percentiles:', error);
+      }
     };
 
     fetchPatchnotes();
     fetchAssociations();
     fetchAbilityDifferences();
+    fetchAbilityPercentiles();
+    setLoading(false);
   }, [game, year, month, version]);
 
   const submitComment = async (comment) => {
@@ -227,6 +241,55 @@ const Patchnotes = ({ game }) => {
     }
   };
 
+  const deleteReply = async (commentId, replyId) => {
+    try {
+      let url = '';
+      if (game === 'overwatch') {
+        url = `http://localhost:3000/patchnotes/overwatch/${year}/${month}/comments/${commentId}/replies/${replyId}`;
+      } else {
+        url = `http://localhost:3000/patchnotes/league-of-legends/${version}/comments/${commentId}/replies/${replyId}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete reply');
+      }
+
+      setPatchnotes((prevPatchnotes) => {
+        const updateReplies = (replies) => {
+          return replies
+            .map((reply) => reply.id === replyId ? null : {
+              ...reply,
+              replies: updateReplies(reply.replies || [])
+            })
+            .filter(reply => reply !== null);
+        };
+
+        const updatedComments = prevPatchnotes.comments.map((comment) => {
+          if (comment.id === commentId) {
+            return {
+              ...comment,
+              replies: updateReplies(comment.replies)
+            };
+          }
+          return comment;
+        });
+
+        return {
+          ...prevPatchnotes,
+          comments: updatedComments,
+        };
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const upvoteComment = async (commentId) => {
     try {
       let url = '';
@@ -266,7 +329,7 @@ const Patchnotes = ({ game }) => {
   };
 
   const openReplyModal = (commentId, replyToId, parentReplyId) => {
-    setCurrentReply({ message: '', replyToId, commentId, parentReplyId });
+    setCurrentReply({ message: '', replyToId: replyToId || user.id, commentId, parentReplyId: parentReplyId || null });
     setModalOpen(true);
   };
 
@@ -320,6 +383,7 @@ const Patchnotes = ({ game }) => {
           <div>
             {update.abilityUpdates.map((ability, idx) => {
               const abilityDiff = abilityDifferences.find(ad => ad.character === update.title && ad.name === ability.name);
+              const abilityPercentile = abilityPercentiles.find(ad => ad.character === update.title && ad.name === ability.name);
               const historicalMessage = abilityDiff && abilityDiff.count > 1
                 ? `The ability has changed by ${abilityDiff.difference.toFixed(1)}% relative to other patches`
                 : 'Insufficient data';
@@ -336,6 +400,11 @@ const Patchnotes = ({ game }) => {
                             'Historical change: Not enough data'}
                         </span>
                         {')'}
+                      </span>
+                    )}
+                    {abilityPercentile && (
+                      <span>
+                        {` (Percentile rank: ${abilityPercentile.percentile.toFixed(1)}%)`}
                       </span>
                     )}
                   </h5>
@@ -363,12 +432,12 @@ const Patchnotes = ({ game }) => {
   };
 
   const renderBugFixes = (bugFixes) => {
-    if (Array.isArray(bugFixes)) {
+    if (Array.isArray(bugFixes) && game === 'league-of-legends') {
       return (
         <div>
           <h2>Bug Fixes</h2>
           <ul>
-            {bugFixes.map((fix, index) => (
+            {bugFixes?.map((fix, index) => (
               <li key={index}>{fix}</li>
             ))}
           </ul>
@@ -377,9 +446,9 @@ const Patchnotes = ({ game }) => {
     } else {
       return (
         <div>
-          <h2>Bug Fixes</h2>
+          <h2>Bug Fixes Overwatch</h2>
           <ul>
-            {bugFixes.map((fix, index) => (
+            {bugFixes?.map((fix, index) => (
               <li key={index}>{fix.name}: {fix.content.join(', ')}</li>
             ))}
           </ul>
@@ -395,12 +464,14 @@ const Patchnotes = ({ game }) => {
     </>
   );
 
-  const renderReplies = (replies) => {
+  const renderReplies = (replies, commentId) => {
     return Array.isArray(replies) ? replies.map((reply) => (
       <div key={reply.id} className='reply'>
+        <img src={`https://ui-avatars.com/api/?name=${reply.user.username}&background=random`} alt={`${reply.user.username}'s avatar`} className='avatar' />
         <p>{reply.user.username}: @{reply.replyTo.username} {reply.message}</p>
-        {renderReplies(reply.replies || [])}
-        <button className='reply-button' onClick={() => openReplyModal(reply.commentId, reply.user.id, reply.id)}>Reply</button>
+        {renderReplies(reply.replies || [], commentId)}
+        <button className='reply-button' onClick={() => openReplyModal(commentId, reply.user.id, reply.id)}>Reply</button>
+        <button className='delete-button' onClick={() => deleteReply(commentId, reply.id)}>Delete</button>
       </div>
     )) : null;
   };
@@ -440,8 +511,8 @@ const Patchnotes = ({ game }) => {
         <div>
           {patchnotes.comments?.map((comment) => (
             <div key={comment.id} className='comment'>
-              <p>{comment.user.username}: {comment.message}</p>
               <img src={`https://ui-avatars.com/api/?name=${comment.user.username}&background=random`} alt={`${comment.user.username}'s avatar`} className='avatar' />
+              <p>{comment.user.username}: {comment.message}</p>
               <div className='vote'>
                 <FontAwesomeIcon
                   id={`thumbs-up-${comment.id}`}
@@ -452,7 +523,7 @@ const Patchnotes = ({ game }) => {
                 <p>{comment.voteCount}</p>
               </div>
               <p onClick={() => deleteComment(comment.id)}>🗑️</p>
-              {renderReplies(comment.replies || [])}
+              {renderReplies(comment.replies || [], comment.id)}
               <button className='reply-button' onClick={() => openReplyModal(comment.id, comment.user.id, null)}>Reply</button>
             </div>
           ))}
