@@ -7,14 +7,14 @@ import 'chart.js/auto';
 const CharacterPage = () => {
     const { character } = useParams();
     const [stats, setStats] = useState(null);
-    const [abilities, setAbilities] = useState([]);
+    const [patchData, setPatchData] = useState([]);
     const [winrateHistory, setWinrateHistory] = useState([]);
     const [loadingStats, setLoadingStats] = useState(true);
-    const [loadingAbilities, setLoadingAbilities] = useState(true);
-    const [loadingWinrateHistory, setLoadingWinrateHistory] = useState(true);
+    const [loadingPatchData, setLoadingPatchData] = useState(true);
     const [winratePredictor, setWinratePredictor] = useState(0);
+    const [updatedWinrateChange, setUpdatedWinrateChange] = useState(0);
     const location = useLocation();
-    const { id } = location.state || {};
+    const { id: patchId } = location.state || {};
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -33,72 +33,46 @@ const CharacterPage = () => {
     }, [character]);
 
     useEffect(() => {
-        const fetchAbilities = async () => {
+        const fetchPatchData = async () => {
             try {
-                const response = await fetch(`http://localhost:3000/abilities?patchId=${id}`);
+                const response = await fetch(`http://localhost:3000/patchdata/${patchId}`);
                 const data = await response.json();
-                setAbilities(data);
-                setLoadingAbilities(false);
+                setPatchData(data);
+                setLoadingPatchData(false);
             } catch (error) {
-                console.error('Error fetching abilities:', error);
-                setLoadingAbilities(false);
+                console.error('Error fetching patch data:', error);
+                setLoadingPatchData(false);
             }
         };
 
-        if (id) {
-            fetchAbilities();
+        if (patchId) {
+            fetchPatchData();
         }
-    }, [id]);
+    }, [patchId]);
 
     useEffect(() => {
-        const fetchWinrateHistory = async () => {
+        const fetchWinratePredictor = async () => {
             try {
-                const response = await fetch(`http://localhost:3000/winratehistory/${id}`);
+                const response = await fetch(`http://localhost:3000/winratePredictor`);
                 const data = await response.json();
-                setWinrateHistory(data);
-                setLoadingWinrateHistory(false);
+                setWinratePredictor(data.predictorValue);
             } catch (error) {
-                console.error('Error fetching winrate history:', error);
-                setLoadingWinrateHistory(false);
+                console.error('Error fetching winrate predictor:', error);
             }
         };
 
-        if (id) {
-            fetchWinrateHistory();
-        }
-    }, [id]);
-
-    const calculateWinrateChangeRatio = (characterName) => {
-        const winrateChange = winrateHistory.find(item => item.character === characterName)?.winrateChange || 0;
-        const sumPercentiles = abilities.filter(ability => ability.character === characterName).reduce((acc, ability) => acc + ability.percentile, 0);
-
-        if (sumPercentiles === 0) {
-            return 0;
-        }
-
-        return winrateChange / sumPercentiles;
-    };
+        fetchWinratePredictor();
+    }, []);
 
     useEffect(() => {
-        const calculateWinratePredictor = () => {
-            const validCharacters = abilities.filter(ability => ability.percentile !== 0).map(ability => ability.character);
-            const uniqueCharacters = [...new Set(validCharacters)];
-            const totalWinrateChangeRatio = uniqueCharacters.reduce((acc, characterName) => {
-                return acc + calculateWinrateChangeRatio(characterName);
-            }, 0);
-            const winratePredictor = uniqueCharacters.length > 0 ? totalWinrateChangeRatio / uniqueCharacters.length : 0;
-            setWinratePredictor(winratePredictor);
-        };
-
-        if (abilities.length > 0 && winrateHistory.length > 0) {
-            calculateWinratePredictor();
+        if (patchData.length > 0 && winratePredictor !== 0) {
+            const characterData = patchData.find(patchCharacter => patchCharacter.character === character);
+            if (characterData) {
+                const updatedWinrate = characterData.percentile * winratePredictor;
+                setUpdatedWinrateChange(updatedWinrate);
+            }
         }
-    }, [abilities, winrateHistory]);
-
-    const calculateUpdatedWinrateChange = (characterName) => {
-        const winrateChangeRatio = calculateWinrateChangeRatio(characterName);
-        return winrateChangeRatio * winratePredictor;
-    };
+    }, [patchData, winratePredictor, character]);
 
     const pickrateGraphData = {
         labels: stats?.pickrateHistory.map(data => new Date(data.timestamp).toLocaleDateString()) || [],
@@ -135,16 +109,19 @@ const CharacterPage = () => {
             ) : (
                 <p>Loading pickrate data...</p>
             )}
-            {loadingAbilities || loadingWinrateHistory ? (
+            {loadingPatchData ? (
                 <p>Loading patch data...</p>
             ) : (
                 <div>
-                    <div key={character}>
-                        <p>Name: {character}</p>
-                        <p>Percentile Sum: {abilities.reduce((acc, ability) => acc + ability.percentile, 0)}</p>
-                        <p>Winrate Change Ratio: {calculateWinrateChangeRatio(character)}</p>
-                        <p>Updated Winrate Change: {calculateUpdatedWinrateChange(character)}</p>
-                    </div>
+                    {patchData
+                        .filter(patchCharacter => patchCharacter.character === character)
+                        .map(patchCharacter => (
+                            <div key={patchCharacter.character}>
+                                <p>Name: {patchCharacter.character}</p>
+                                <p>Percentile Sum: {patchCharacter.percentile}</p>
+                                <p>Updated Winrate Change: {updatedWinrateChange}</p>
+                            </div>
+                        ))}
                     <div>
                         <h2>Winrate Predictor: {winratePredictor}</h2>
                     </div>
