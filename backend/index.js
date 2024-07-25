@@ -68,7 +68,6 @@ const classifyAndStore = (updates, category, patchId, associations, game) => {
   const buffs = [];
 
   updates.forEach((update) => {
-    console.log(`Processing update for character: ${update.title || category}`);
     const classifiedUpdate = {
       character: update.title || category,
       details: [],
@@ -80,7 +79,6 @@ const classifyAndStore = (updates, category, patchId, associations, game) => {
     }
 
     if (update.abilityUpdates) {
-      console.log('Processing ability updates...');
       update.abilityUpdates.forEach((abilityUpdate) => {
         abilityUpdate.content.forEach((content) => {
           const classification = classifyUpdate(content, associations);
@@ -96,7 +94,6 @@ const classifyAndStore = (updates, category, patchId, associations, game) => {
     }
 
     if (update.generalUpdates) {
-      console.log('Processing general updates...');
       update.generalUpdates.forEach((generalUpdate) => {
         const classification = classifyUpdate(generalUpdate, associations);
         if (classification === 'nerf') {
@@ -124,16 +121,12 @@ const classifyAndStore = (updates, category, patchId, associations, game) => {
 
 const processPatchNotes = async (game, patches, associations) => {
   for (const patch of patches) {
-    console.log(`Processing patch: ${patch.id}`);
     const patchDetails = await prisma[`patchnotes_${game}`].findUnique({
       where: { id: patch.id },
     });
     if (!patchDetails) {
-      console.log(`No patch details found for patch: ${patch.id}`);
       continue;
     }
-
-    console.log(`Patch details for patch ${patch.id}:`);
 
     const allCategories = ['tank', 'damage', 'support', 'champions'];
     let allNerfs = [];
@@ -141,17 +134,11 @@ const processPatchNotes = async (game, patches, associations) => {
 
     allCategories.forEach((category) => {
       if (patchDetails.details[category] && patchDetails.details[category].length) {
-        console.log(`Processing updates for category: ${category}`);
         const { nerfs, buffs } = classifyAndStore(patchDetails.details[category], category, patch.id, associations, game);
         allNerfs = allNerfs.concat(nerfs);
         allBuffs = allBuffs.concat(buffs);
-      } else {
-        console.log(`No updates for category: ${category}`);
       }
     });
-
-    console.log(`Nerfs: ${JSON.stringify(allNerfs)}`);
-    console.log(`Buffs: ${JSON.stringify(allBuffs)}`);
 
     for (const nerf of allNerfs) {
       try {
@@ -353,7 +340,9 @@ app.delete('/words/:word', async (req, res) => {
 // main
 app.get('/patchnotes/overwatch', async (req, res) => {
   try {
-    const patchNotes = await prisma.patchnotes_ow.findMany();
+    const patchNotes = await prisma.patchnotes_ow.findMany({
+      orderBy: { id: 'asc' }
+    });
     res.json(patchNotes);
   } catch (error) {
     console.error('Error in /patchnotes/overwatch route:', error.message);
@@ -363,7 +352,9 @@ app.get('/patchnotes/overwatch', async (req, res) => {
 
 app.get('/patchnotes/league-of-legends', async (req, res) => {
   try {
-    const patchNotes = await prisma.patchnotes_lol.findMany();
+    const patchNotes = await prisma.patchnotes_lol.findMany({
+      orderBy: { id: 'asc' }
+    });
     res.json(patchNotes);
   } catch (error) {
     console.error('Error in /patchnotes/league-of-legends route:', error.message);
@@ -519,15 +510,22 @@ app.put('/patchnotes/league-of-legends/:version/:commentId/vote', cors(), async 
 app.post('/patchnotes/overwatch/:year/:month/comments/:commentId/replies', async (req, res) => {
   const { message, userId, replyToId, parentReplyId } = req.body;
   const { commentId } = req.params;
+
+  if (!replyToId) {
+    return res.status(400).json({ error: 'replyToId must be provided' });
+  }
+
   try {
+    const data = {
+      message,
+      user: { connect: { id: userId } },
+      comment: { connect: { id: parseInt(commentId, 10) } },
+      replyTo: { connect: { id: replyToId } },
+      parentReply: parentReplyId ? { connect: { id: parentReplyId } } : undefined
+    };
+
     const newReply = await prisma.reply_ow.create({
-      data: {
-        message,
-        user: { connect: { id: userId } },
-        comment: { connect: { id: parseInt(commentId, 10) } },
-        replyTo: { connect: { id: replyToId } },
-        parentReply: parentReplyId ? { connect: { id: parentReplyId } } : undefined
-      },
+      data,
       include: { user: true, replyTo: true },
     });
     res.json(newReply);
@@ -548,6 +546,67 @@ app.get('/patchnotes/overwatch/:year/:month/comments/:commentId/replies', async 
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to fetch replies' });
+  }
+});
+
+app.post('/patchnotes/league-of-legends/:version/comments/:commentId/replies', async (req, res) => {
+  const { message, userId, replyToId, parentReplyId } = req.body;
+  const { commentId } = req.params;
+  try {
+    const newReply = await prisma.reply_ow.create({
+      data: {
+        message,
+        user: { connect: { id: userId } },
+        comment: { connect: { id: parseInt(commentId, 10) } },
+        replyTo: { connect: { id: replyToId } },
+        parentReply: parentReplyId ? { connect: { id: parentReplyId } } : undefined
+      },
+      include: { user: true, replyTo: true },
+    });
+    res.json(newReply);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to create reply' });
+  }
+});
+
+app.get('/patchnotes/league-of-legends/:version/comments/:commentId/replies', async (req, res) => {
+  const { commentId } = req.params;
+  try {
+    const replies = await prisma.reply_ow.findMany({
+      where: { commentId: parseInt(commentId, 10) },
+      include: { user: true, replyTo: true, replies: true },
+    });
+    res.json(replies);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch replies' });
+  }
+});
+
+app.delete('/patchnotes/overwatch/:year/:month/comments/:commentId/replies/:replyId', async (req, res) => {
+  const { replyId } = req.params;
+  try {
+    const deletedReply = await prisma.reply_ow.delete({
+      where: { id: parseInt(replyId, 10) },
+    });
+    res.json(deletedReply);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete reply' });
+  }
+});
+
+app.delete('/patchnotes/league-of-legends/:version/comments/:commentId/replies/:replyId', async (req, res) => {
+  const { replyId } = req.params;
+  try {
+    const deletedReply = await prisma.reply_ow.delete({
+      where: { id: parseInt(replyId, 10) },
+    });
+    res.json(deletedReply);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete reply' });
   }
 });
 
@@ -590,7 +649,6 @@ app.get('/associations', async (req, res) => {
   }
 });
 
-
 app.delete('/associations/:type/:index', async (req, res) => {
   const { type, index } = req.params;
   try {
@@ -603,44 +661,6 @@ app.delete('/associations/:type/:index', async (req, res) => {
   } catch (error) {
     console.error('Error deleting association:', error.message);
     res.status(500).json({ error: 'Failed to delete association' });
-  }
-});
-
-// abilities
-app.get('/abilities', async (req, res) => {
-  try {
-    const abilities = await prisma.ability.findMany();
-    const abilityMap = {};
-
-    abilities.forEach((ability) => {
-      const key = `${ability.character}-${ability.name}`;
-      if (!abilityMap[key]) {
-        abilityMap[key] = {
-          character: ability.character,
-          name: ability.name,
-          overallPercentile: ability.overallPercentile,
-          count: 0,
-        };
-      }
-      abilityMap[key].count += 1;
-    });
-
-    const abilityDifferences = abilities.map((ability) => {
-      const key = `${ability.character}-${ability.name}`;
-      const difference = Math.abs(ability.percentile) - Math.abs(abilityMap[key].overallPercentile);
-      return {
-        character: ability.character,
-        name: ability.name,
-        percentile: ability.percentile,
-        difference,
-        count: abilityMap[key].count,
-      };
-    });
-
-    res.json(abilityDifferences);
-  } catch (error) {
-    console.error('Error fetching abilities:', error.message);
-    res.status(500).json({ error: 'Failed to fetch abilities' });
   }
 });
 
@@ -663,32 +683,212 @@ app.get('/stats/:character', async (req, res) => {
   }
 });
 
-app.post('/changes', async (req, res) => {
-  const { patchId, game } = req.body;
+app.get('/abilities', async (req, res) => {
   try {
-    const nerfs = await prisma.nerf.findMany({
-      where: game === 'lol' ? { patchIdLOL: patchId } : { patchIdOW: patchId },
+    const abilities = await prisma.ability.findMany();
+    const abilityMap = {};
+
+    abilities.forEach((ability) => {
+      const key = `${ability.character}-${ability.name}`;
+      if (!abilityMap[key]) {
+        abilityMap[key] = {
+          character: ability.character,
+          name: ability.name,
+          overallPercentile: ability.overallPercentile,
+          count: 0,
+        };
+      }
+      abilityMap[key].count += 1;
     });
 
-    const buffs = await prisma.buff.findMany({
-      where: game === 'lol' ? { patchIdLOL: patchId } : { patchIdOW: patchId },
+    const abilityDifferences = abilities.map((ability) => {
+      const key = `${ability.character}-${ability.name}`;
+      const difference = ability.percentile - abilityMap[key].overallPercentile;
+      return {
+        character: ability.character,
+        name: ability.name,
+        percentile: ability.percentile,
+        difference,
+        count: abilityMap[key].count,
+      };
     });
 
-    const characters = [...new Set([...nerfs.map(n => n.character), ...buffs.map(b => b.character)])];
-    const pickrateHistory = {};
+    res.json(abilityDifferences);
+  } catch (error) {
+    console.error('Error fetching abilities:', error.message);
+    res.status(500).json({ error: 'Failed to fetch abilities' });
+  }
+});
 
-    for (const character of characters) {
-      const stats = await prisma.statistics.findUnique({
-        where: { character },
-        include: { pickrateHistory: true },
+app.get('/abilities/percentiles', async (req, res) => {
+  try {
+    const abilities = await prisma.ability.findMany();
+    const abilityMap = {};
+
+    abilities.forEach((ability) => {
+      const key = `${ability.character}-${ability.name}`;
+      if (!abilityMap[key]) {
+        abilityMap[key] = [];
+      }
+      abilityMap[key].push(ability.percentChange);
+    });
+
+    const abilityPercentiles = abilities.map((ability) => {
+      const key = `${ability.character}-${ability.name}`;
+      const changes = abilityMap[key].sort((a, b) => a - b);
+      const rank = changes.indexOf(ability.percentChange);
+      const percentile = (1 - rank) / changes.length;
+
+      return {
+        character: ability.character,
+        name: ability.name,
+        percentChange: ability.percentChange,
+        percentile: percentile * 100
+      };
+    });
+
+    res.json(abilityPercentiles);
+  } catch (error) {
+    console.error('Error fetching abilities:', error.message);
+    res.status(500).json({ error: 'Failed to fetch abilities' });
+  }
+});
+
+app.get('/patchdata/:patchId', async (req, res) => {
+  const { patchId } = req.params;
+
+  try {
+    const winrateData = await prisma.winrateChangeHistory.findMany({
+      where: { patchId: parseInt(patchId) }
+    });
+
+    const abilityData = await prisma.ability.findMany({
+      where: { patchIdLOL: parseInt(patchId) }
+    });
+
+    const combinedData = {};
+
+    winrateData.forEach(item => {
+      if (!combinedData[item.character]) {
+        combinedData[item.character] = {
+          character: item.character,
+          winrateChange: 0,
+          percentile: 0
+        };
+      }
+      combinedData[item.character].winrateChange += item.winrateChange;
+    });
+
+    abilityData.forEach(item => {
+      if (!combinedData[item.character]) {
+        combinedData[item.character] = {
+          character: item.character,
+          winrateChange: 0,
+          percentile: 0
+        };
+      }
+      combinedData[item.character].percentile += item.percentile;
+    });
+
+    const result = Object.values(combinedData);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching patch data:', error);
+    res.status(500).json({ error: 'Failed to fetch patch data' });
+  }
+});
+
+const applyTransformation = (value, lambda = -3) => {
+  return (Math.pow(value, lambda) - 1) / lambda;
+};
+
+app.get('/winratePredictor', async (req, res) => {
+  try {
+    const winrateData = await prisma.winrateChangeHistory.findMany();
+    const abilityData = await prisma.ability.findMany();
+
+    const combinedData = {};
+
+    winrateData.forEach(item => {
+      if (!combinedData[item.character]) {
+        combinedData[item.character] = {
+          character: item.character,
+          winrateChanges: [],
+          percentiles: []
+        };
+      }
+      combinedData[item.character].winrateChanges.push({
+        patchId: item.patchId,
+        winrateChange: item.winrateChange
       });
-      pickrateHistory[character] = stats ? stats.pickrateHistory : [];
+    });
+
+    abilityData.forEach(item => {
+      if (!combinedData[item.character]) {
+        combinedData[item.character] = {
+          character: item.character,
+          winrateChanges: [],
+          percentiles: []
+        };
+      }
+      combinedData[item.character].percentiles.push({
+        patchId: item.patchIdLOL,
+        percentile: item.percentile
+      });
+    });
+
+    const rawPercentileSums = [];
+    const transformedPercentileSums = [];
+    const winrateChangeRatios = [];
+    let totalCharacterChanges = 0;
+
+    for (const character in combinedData) {
+      const data = combinedData[character];
+      const patchMap = {};
+
+      data.percentiles.forEach(item => {
+        if (!patchMap[item.patchId]) {
+          patchMap[item.patchId] = { percentileSum: 0 };
+        }
+        patchMap[item.patchId].percentileSum += item.percentile;
+      });
+
+      data.winrateChanges.forEach(item => {
+        if (patchMap[item.patchId]) {
+          patchMap[item.patchId].winrateChange = item.winrateChange;
+        }
+      });
+
+      for (const patchId in patchMap) {
+        let { percentileSum, winrateChange } = patchMap[patchId];
+        rawPercentileSums.push(percentileSum);
+        if (percentileSum !== 0) {
+          const transformedPercentileSum = applyTransformation(percentileSum);
+          if (!isNaN(percentileSum)) {
+            transformedPercentileSums.push(percentileSum);
+            if ((winrateChange < 0 && transformedPercentileSum < 0) || (winrateChange > 0 && transformedPercentileSum > 0)) {
+              const ratio = winrateChange / transformedPercentileSum;
+              if (!isNaN(ratio)) {
+                winrateChangeRatios.push(ratio);
+                totalCharacterChanges += 1;
+              }
+            }
+          }
+        }
+      }
     }
 
-    res.json({ nerfs, buffs, pickrateHistory });
+    const predictorValue = totalCharacterChanges > 0 ? winrateChangeRatios.reduce((acc, ratio) => acc + ratio, 0) / totalCharacterChanges : 0;
+
+    res.json({
+      predictorValue,
+      rawPercentileSums,
+      transformedPercentileSums
+    });
   } catch (error) {
-    console.error('Error fetching nerfs and buffs:', error.message);
-    res.status(500).json({ error: 'Failed to fetch nerfs and buffs' });
+    console.error('Error calculating winrate predictor:', error);
+    res.status(500).json({ error: 'Failed to calculate winrate predictor' });
   }
 });
 
