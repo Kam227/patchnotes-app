@@ -3,7 +3,6 @@ const prisma = new PrismaClient();
 
 const parseAbilityUpdates = async (patchId, character, abilityUpdates) => {
     if (!Array.isArray(abilityUpdates)) {
-        console.warn(`Warning: abilityUpdates is not an array for patchId ${patchId} and character ${character}`);
         return;
     }
 
@@ -14,7 +13,7 @@ const parseAbilityUpdates = async (patchId, character, abilityUpdates) => {
                 if (match) {
                     const oldValue = parseInt(match[1]);
                     const newValue = parseInt(match[3]);
-                    const percentChange = ((newValue - oldValue) / oldValue) * 100;
+                    const percentChange = ((newValue - oldValue) / oldValue);
 
                     if (isFinite(percentChange)) {
                         const existingAbility = await prisma.ability.findFirst({

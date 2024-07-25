@@ -3,20 +3,28 @@ const prisma = new PrismaClient();
 
 const parseAbilityUpdates = async (patchId, character, abilityUpdates) => {
     if (!Array.isArray(abilityUpdates)) {
-        console.warn(`Warning: abilityUpdates is not an array for patchId ${patchId} and character ${character}`);
         return;
     }
 
     for (const update of abilityUpdates) {
-        if (update && update.content && Array.isArray(update.content)) {
+        if (update && update.content && Array.isArray(update.content) && update.name) {
             for (const content of update.content) {
-                const match = content.match(/(\d+)\s*⇒\s*(\d+)\s*(seconds|%)?/i);
+                const match = content.match(/(\d+(?:\/\d+)*\s*(?:\(.*?\))*)\s*⇒\s*(\d+(?:\/\d+)*\s*(?:\(.*?\))*)/i);
                 if (match) {
-                    const oldValue = parseInt(match[1]);
-                    const newValue = parseInt(match[2]);
-                    const percentChange = ((newValue - oldValue) / oldValue) * 100;
+                    const oldValueStr = match[1];
+                    const newValueStr = match[2];
 
-                    if (isFinite(percentChange)) {
+                    const oldValues = oldValueStr.match(/\d+/g).map(Number);
+                    const newValues = newValueStr.match(/\d+/g).map(Number);
+
+                    const percentChanges = oldValues.map((oldValue, index) => {
+                        const newValue = newValues[index];
+                        return ((newValue - oldValue) / oldValue);
+                    });
+
+                    const averagePercentChange = percentChanges.reduce((sum, change) => sum + change, 0) / percentChanges.length;
+
+                    if (isFinite(averagePercentChange)) {
                         const existingAbility = await prisma.ability.findFirst({
                             where: {
                                 patchIdLOL: patchId,
@@ -31,19 +39,19 @@ const parseAbilityUpdates = async (patchId, character, abilityUpdates) => {
                                     patchIdLOL: patchId,
                                     character: character,
                                     name: update.name,
-                                    percentile: percentChange
+                                    percentile: averagePercentChange
                                 }
                             });
                         } else {
-                            continue
+                            continue;
                         }
                     } else {
-                        continue
+                        continue;
                     }
                 }
             }
         } else {
-            continue
+            continue;
         }
     }
 };
@@ -61,10 +69,8 @@ const getCharacterAbilities_LOL = async () => {
             const details = patch.details;
             const champions = details.champions || [];
 
-            let hasValidUpdates = false;
             for (const champion of champions) {
                 if (champion.abilityUpdates && Array.isArray(champion.abilityUpdates)) {
-                    hasValidUpdates = true;
                     await parseAbilityUpdates(patch.id, champion.title, champion.abilityUpdates);
                 } else {
                     console.warn(`Warning: abilityUpdates is not an array for patchId ${patch.id}`);
