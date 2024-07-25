@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
-import { Line } from 'react-chartjs-2';
+import { Line, Bar } from 'react-chartjs-2';
 import 'chart.js/auto';
 
 const CharacterPage = () => {
@@ -13,6 +13,8 @@ const CharacterPage = () => {
     const [loadingPatchData, setLoadingPatchData] = useState(true);
     const [winratePredictor, setWinratePredictor] = useState(0);
     const [updatedWinrateChange, setUpdatedWinrateChange] = useState(0);
+    const [rawPercentileSums, setRawPercentileSums] = useState([]);
+    const [transformedPercentileSums, setTransformedPercentileSums] = useState([]);
     const location = useLocation();
     const { id: patchId } = location.state || {};
 
@@ -51,11 +53,29 @@ const CharacterPage = () => {
     }, [patchId]);
 
     useEffect(() => {
+        const fetchWinrateHistory = async () => {
+            try {
+                const response = await fetch(`http://localhost:3000/winratehistory/${patchId}`);
+                const data = await response.json();
+                setWinrateHistory(data);
+            } catch (error) {
+                console.error('Error fetching winrate history:', error);
+            }
+        };
+
+        if (patchId) {
+            fetchWinrateHistory();
+        }
+    }, [patchId]);
+
+    useEffect(() => {
         const fetchWinratePredictor = async () => {
             try {
                 const response = await fetch(`http://localhost:3000/winratePredictor`);
                 const data = await response.json();
                 setWinratePredictor(data.predictorValue);
+                setRawPercentileSums(data.rawPercentileSums);
+                setTransformedPercentileSums(data.transformedPercentileSums);
             } catch (error) {
                 console.error('Error fetching winrate predictor:', error);
             }

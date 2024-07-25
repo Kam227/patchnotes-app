@@ -720,6 +720,40 @@ app.get('/abilities', async (req, res) => {
   }
 });
 
+app.get('/abilities/percentiles', async (req, res) => {
+  try {
+    const abilities = await prisma.ability.findMany();
+    const abilityMap = {};
+
+    abilities.forEach((ability) => {
+      const key = `${ability.character}-${ability.name}`;
+      if (!abilityMap[key]) {
+        abilityMap[key] = [];
+      }
+      abilityMap[key].push(ability.percentChange);
+    });
+
+    const abilityPercentiles = abilities.map((ability) => {
+      const key = `${ability.character}-${ability.name}`;
+      const changes = abilityMap[key].sort((a, b) => a - b);
+      const rank = changes.indexOf(ability.percentChange);
+      const percentile = (1 - rank) / changes.length;
+
+      return {
+        character: ability.character,
+        name: ability.name,
+        percentChange: ability.percentChange,
+        percentile: percentile * 100
+      };
+    });
+
+    res.json(abilityPercentiles);
+  } catch (error) {
+    console.error('Error fetching abilities:', error.message);
+    res.status(500).json({ error: 'Failed to fetch abilities' });
+  }
+});
+
 app.get('/patchdata/:patchId', async (req, res) => {
   const { patchId } = req.params;
 
@@ -765,89 +799,7 @@ app.get('/patchdata/:patchId', async (req, res) => {
   }
 });
 
-// const applyTransformation = (value) => Math.tanh(value);
-
-// app.get('/winratePredictor', async (req, res) => {
-//   try {
-//     const winrateData = await prisma.winrateChangeHistory.findMany();
-//     const abilityData = await prisma.ability.findMany();
-
-//     const combinedData = {};
-
-//     winrateData.forEach(item => {
-//       if (!combinedData[item.character]) {
-//         combinedData[item.character] = {
-//           character: item.character,
-//           winrateChanges: [],
-//           percentiles: []
-//         };
-//       }
-//       combinedData[item.character].winrateChanges.push({
-//         patchId: item.patchId,
-//         winrateChange: item.winrateChange
-//       });
-//     });
-
-//     abilityData.forEach(item => {
-//       if (!combinedData[item.character]) {
-//         combinedData[item.character] = {
-//           character: item.character,
-//           winrateChanges: [],
-//           percentiles: []
-//         };
-//       }
-//       combinedData[item.character].percentiles.push({
-//         patchId: item.patchIdLOL,
-//         percentile: item.percentile
-//       });
-//     });
-
-//     const winrateChangeRatios = [];
-//     let totalCharacterChanges = 0;
-
-//     for (const character in combinedData) {
-//       const data = combinedData[character];
-//       const patchMap = {};
-
-//       data.percentiles.forEach(item => {
-//         if (!patchMap[item.patchId]) {
-//           patchMap[item.patchId] = { percentileSum: 0 };
-//         }
-//         patchMap[item.patchId].percentileSum += item.percentile;
-//       });
-
-//       data.winrateChanges.forEach(item => {
-//         if (patchMap[item.patchId]) {
-//           patchMap[item.patchId].winrateChange = item.winrateChange;
-//         }
-//       });
-
-//       for (const patchId in patchMap) {
-//         let { percentileSum, winrateChange } = patchMap[patchId];
-
-//         percentileSum = applyTransformation(percentileSum);
-//         console.log(percentileSum)
-//         if (percentileSum !== 0) {
-//           const ratio = winrateChange / percentileSum;
-//           if (!isNaN(ratio)) {
-//             winrateChangeRatios.push(ratio);
-//             totalCharacterChanges += 1;
-//           }
-//         }
-//       }
-//     }
-
-//     const predictorValue = totalCharacterChanges > 0 ? winrateChangeRatios.reduce((acc, ratio) => acc + ratio, 0) / totalCharacterChanges : 0;
-//     console.log(`value: ${predictorValue}`);
-
-//     res.json({ predictorValue });
-//   } catch (error) {
-//     console.error('Error calculating winrate predictor:', error);
-//     res.status(500).json({ error: 'Failed to calculate winrate predictor' });
-//   }
-// });
-
-const applyTransformation = (value, lambda = 0.3) => {
+const applyTransformation = (value, lambda = -3) => {
   return (Math.pow(value, lambda) - 1) / lambda;
 };
 
@@ -886,6 +838,8 @@ app.get('/winratePredictor', async (req, res) => {
       });
     });
 
+    const rawPercentileSums = [];
+    const transformedPercentileSums = [];
     const winrateChangeRatios = [];
     let totalCharacterChanges = 0;
 
@@ -908,14 +862,17 @@ app.get('/winratePredictor', async (req, res) => {
 
       for (const patchId in patchMap) {
         let { percentileSum, winrateChange } = patchMap[patchId];
-
-        if ((percentileSum > 0 && winrateChange > 0) || (percentileSum < 0 && winrateChange < 0)) {
-          percentileSum = applyTransformation(Math.abs(percentileSum));
-          if (percentileSum > 0) {
-            const ratio = Math.abs(winrateChange) / percentileSum;
-            if (!isNaN(ratio)) {
-              winrateChangeRatios.push(ratio);
-              totalCharacterChanges += 1;
+        rawPercentileSums.push(percentileSum);
+        if (percentileSum !== 0) {
+          const transformedPercentileSum = applyTransformation(percentileSum);
+          if (!isNaN(percentileSum)) {
+            transformedPercentileSums.push(percentileSum);
+            if ((winrateChange < 0 && transformedPercentileSum < 0) || (winrateChange > 0 && transformedPercentileSum > 0)) {
+              const ratio = winrateChange / transformedPercentileSum;
+              if (!isNaN(ratio)) {
+                winrateChangeRatios.push(ratio);
+                totalCharacterChanges += 1;
+              }
             }
           }
         }
@@ -923,9 +880,12 @@ app.get('/winratePredictor', async (req, res) => {
     }
 
     const predictorValue = totalCharacterChanges > 0 ? winrateChangeRatios.reduce((acc, ratio) => acc + ratio, 0) / totalCharacterChanges : 0;
-    console.log(`value: ${predictorValue}`);
 
-    res.json({ predictorValue });
+    res.json({
+      predictorValue,
+      rawPercentileSums,
+      transformedPercentileSums
+    });
   } catch (error) {
     console.error('Error calculating winrate predictor:', error);
     res.status(500).json({ error: 'Failed to calculate winrate predictor' });
