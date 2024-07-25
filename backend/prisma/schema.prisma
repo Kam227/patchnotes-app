@@ -147,13 +147,6 @@ model PickrateHistory {
   statistics Statistics @relation(fields: [statisticsId], references: [id])
 }
 
-model WinrateChangeHistory {
-  id Int @id @default(autoincrement())
-  winrateChange Float
-  patchId Int
-  character String
-}
-
 model Ability {
   id Int @id @default(autoincrement())
   patchIdOW Int?

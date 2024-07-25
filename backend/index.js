@@ -353,9 +353,7 @@ app.delete('/words/:word', async (req, res) => {
 // main
 app.get('/patchnotes/overwatch', async (req, res) => {
   try {
-    const patchNotes = await prisma.patchnotes_ow.findMany({
-      orderBy: { id: 'asc' }
-    });
+    const patchNotes = await prisma.patchnotes_ow.findMany();
     res.json(patchNotes);
   } catch (error) {
     console.error('Error in /patchnotes/overwatch route:', error.message);
@@ -365,9 +363,7 @@ app.get('/patchnotes/overwatch', async (req, res) => {
 
 app.get('/patchnotes/league-of-legends', async (req, res) => {
   try {
-    const patchNotes = await prisma.patchnotes_lol.findMany({
-      orderBy: { id: 'asc' }
-    });
+    const patchNotes = await prisma.patchnotes_lol.findMany();
     res.json(patchNotes);
   } catch (error) {
     console.error('Error in /patchnotes/league-of-legends route:', error.message);
@@ -594,6 +590,7 @@ app.get('/associations', async (req, res) => {
   }
 });
 
+
 app.delete('/associations/:type/:index', async (req, res) => {
   const { type, index } = req.params;
   try {
@@ -606,6 +603,44 @@ app.delete('/associations/:type/:index', async (req, res) => {
   } catch (error) {
     console.error('Error deleting association:', error.message);
     res.status(500).json({ error: 'Failed to delete association' });
+  }
+});
+
+// abilities
+app.get('/abilities', async (req, res) => {
+  try {
+    const abilities = await prisma.ability.findMany();
+    const abilityMap = {};
+
+    abilities.forEach((ability) => {
+      const key = `${ability.character}-${ability.name}`;
+      if (!abilityMap[key]) {
+        abilityMap[key] = {
+          character: ability.character,
+          name: ability.name,
+          overallPercentile: ability.overallPercentile,
+          count: 0,
+        };
+      }
+      abilityMap[key].count += 1;
+    });
+
+    const abilityDifferences = abilities.map((ability) => {
+      const key = `${ability.character}-${ability.name}`;
+      const difference = Math.abs(ability.percentile) - Math.abs(abilityMap[key].overallPercentile);
+      return {
+        character: ability.character,
+        name: ability.name,
+        percentile: ability.percentile,
+        difference,
+        count: abilityMap[key].count,
+      };
+    });
+
+    res.json(abilityDifferences);
+  } catch (error) {
+    console.error('Error fetching abilities:', error.message);
+    res.status(500).json({ error: 'Failed to fetch abilities' });
   }
 });
 
@@ -628,99 +663,32 @@ app.get('/stats/:character', async (req, res) => {
   }
 });
 
-app.get('/abilities', async (req, res) => {
+app.post('/changes', async (req, res) => {
+  const { patchId, game } = req.body;
   try {
-    const abilities = await prisma.ability.findMany();
-    const abilityMap = {};
-
-    abilities.forEach((ability) => {
-      const key = `${ability.character}-${ability.name}`;
-      if (!abilityMap[key]) {
-        abilityMap[key] = {
-          character: ability.character,
-          name: ability.name,
-          overallPercentile: ability.overallPercentile,
-          count: 0,
-        };
-      }
-      abilityMap[key].count += 1;
+    const nerfs = await prisma.nerf.findMany({
+      where: game === 'lol' ? { patchIdLOL: patchId } : { patchIdOW: patchId },
     });
 
-    const abilityDifferences = abilities.map((ability) => {
-      const key = `${ability.character}-${ability.name}`;
-      const difference = ability.percentile - abilityMap[key].overallPercentile;
-      return {
-        character: ability.character,
-        name: ability.name,
-        percentile: ability.percentile,
-        difference,
-        count: abilityMap[key].count,
-      };
+    const buffs = await prisma.buff.findMany({
+      where: game === 'lol' ? { patchIdLOL: patchId } : { patchIdOW: patchId },
     });
 
-    res.json(abilityDifferences);
+    const characters = [...new Set([...nerfs.map(n => n.character), ...buffs.map(b => b.character)])];
+    const pickrateHistory = {};
+
+    for (const character of characters) {
+      const stats = await prisma.statistics.findUnique({
+        where: { character },
+        include: { pickrateHistory: true },
+      });
+      pickrateHistory[character] = stats ? stats.pickrateHistory : [];
+    }
+
+    res.json({ nerfs, buffs, pickrateHistory });
   } catch (error) {
-    console.error('Error fetching abilities:', error.message);
-    res.status(500).json({ error: 'Failed to fetch abilities' });
-  }
-});
-
-app.get('/patchdata/:patchId', async (req, res) => {
-  const { patchId } = req.params;
-
-  try {
-    const winrateData = await prisma.winrateChangeHistory.findMany({
-      where: { patchId: parseInt(patchId) }
-    });
-
-    const abilityData = await prisma.ability.findMany({
-      where: { patchIdLOL: parseInt(patchId) }
-    });
-
-    const combinedData = {};
-
-    winrateData.forEach(item => {
-      if (!combinedData[item.character]) {
-        combinedData[item.character] = {
-          character: item.character,
-          winrateChange: 0,
-          percentile: 0
-        };
-      }
-      combinedData[item.character].winrateChange += item.winrateChange;
-    });
-
-    abilityData.forEach(item => {
-      if (!combinedData[item.character]) {
-        combinedData[item.character] = {
-          character: item.character,
-          winrateChange: 0,
-          percentile: 0
-        };
-      }
-      combinedData[item.character].percentile += item.percentile;
-    });
-
-    const result = Object.values(combinedData);
-
-    res.json(result);
-  } catch (error) {
-    console.error('Error fetching patch data:', error);
-    res.status(500).json({ error: 'Failed to fetch patch data' });
-  }
-});
-
-app.get('/winratehistory/:patchId', async (req, res) => {
-  const { patchId } = req.params;
-
-  try {
-    const winrateHistory = await prisma.winrateChangeHistory.findMany({
-      where: { patchId: parseInt(patchId) }
-    });
-    res.json(winrateHistory);
-  } catch (error) {
-    console.error('Error fetching winrate history:', error);
-    res.status(500).json({ error: 'Failed to fetch winrate history' });
+    console.error('Error fetching nerfs and buffs:', error.message);
+    res.status(500).json({ error: 'Failed to fetch nerfs and buffs' });
   }
 });
 
