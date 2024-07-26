@@ -1,8 +1,37 @@
 .navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-top: 20px;
     margin-right: 20px;
     position: fixed;
     height: 80px;
     top: 0;
     right: 0;
+    width: 100%;
+}
+
+.navbar-title {
+    font-family: 'Cursive', sans-serif;
+    font-size: 24px;
+    color: #343a40;
+    margin-left: 40px;
+}
+
+.navbar-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.navbar-buttons button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.navbar-buttons button:hover {
+    background-color: #0056b3;
 }

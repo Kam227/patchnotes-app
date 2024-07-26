@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { UserContext } from '../../UserContext';
 import { useNavigate } from 'react-router-dom';
@@ -32,7 +32,10 @@ const Patchnotes = ({ game }) => {
   const [abilityDifferences, setAbilityDifferences] = useState([]);
   const [abilityPercentiles, setAbilityPercentiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [abilities, setAbilities] = useState([]);
+  const [abilityDropdown, setAbilityDropdown] = useState([]);
   const navigate = useNavigate();
+  const commentInputRef = useRef();
 
   const classifyUpdate = (text) => {
     for (let keyword of associations.nerf) {
@@ -78,6 +81,7 @@ const Patchnotes = ({ game }) => {
             },
             comments: data.comments ? data.comments.map(comment => ({ ...comment, replies: comment.replies || [] })) : [],
           });
+          setAbilities(extractAbilities(data.details));
         } else {
           setPatchnotes({
             id: null,
@@ -145,7 +149,21 @@ const Patchnotes = ({ game }) => {
     setLoading(false);
   }, [game, year, month, version]);
 
+  const extractAbilities = (details) => {
+    let abilities = [];
+    for (let category in details) {
+      for (let update of details[category]) {
+        if (update.abilityUpdates) {
+          abilities = [...abilities, ...update.abilityUpdates.map(ability => ability.name)];
+        }
+      }
+    }
+    return abilities;
+  };
+
   const submitComment = async (comment) => {
+    const highlightedComment = highlightAbilities(comment.message);
+    comment.message = highlightedComment;
     try {
       let url = '';
       if (game === 'overwatch') {
@@ -389,7 +407,7 @@ const Patchnotes = ({ game }) => {
                 ? `The ability has changed by ${abilityDiff.difference.toFixed(1)}% relative to other patches`
                 : 'Insufficient data';
               return (
-                <div key={idx}>
+                <div key={idx} id={`ability-${ability.name.replace(/\s+/g, '-')}`}>
                   <h5>
                     {ability.name}
                     {abilityDiff && (
@@ -482,6 +500,69 @@ const Patchnotes = ({ game }) => {
     'league-of-legends': ['Champions', 'Items', 'Bug Fixes'],
   };
 
+  const handleCommentInputChange = (e) => {
+    const input = e.target.value;
+    const atIndex = input.lastIndexOf('@');
+    if (atIndex !== -1) {
+      const query = input.slice(atIndex + 1).toLowerCase();
+      const filteredAbilities = abilities.filter(ability => ability.toLowerCase().includes(query));
+      setAbilityDropdown(filteredAbilities);
+    } else {
+      setAbilityDropdown([]);
+    }
+  };
+
+  const handleAbilityName = (ability) => {
+    const input = commentInputRef.current.value;
+    const atIndex = input.lastIndexOf('@');
+    const newInput = input.slice(0, atIndex + 1) + ability + ' ';
+    commentInputRef.current.value = newInput;
+    setAbilityDropdown([]);
+  };
+
+  const highlightAbilities = (message) => {
+    const regex = /@([a-zA-Z\s]+)/g;
+    return message.replace(regex, (match, p1) => {
+      const ability = p1.trim();
+      return `<span class="highlight" data-ability="${ability.replace(/\s+/g, '-')}">@${ability}</span>`;
+    });
+  };
+
+  useEffect(() => {
+    const handleAbilityClick = (event) => {
+      const abilityName = event.target.getAttribute('data-ability').replace(/-/g, ' ');
+      let found = false;
+      for (const category in patchnotes.details) {
+        for (const update of patchnotes.details[category]) {
+          if (update.abilityUpdates) {
+            for (const ability of update.abilityUpdates) {
+              if (ability.name.toLowerCase() === abilityName.toLowerCase()) {
+                const element = document.querySelector(`[id='ability-${ability.name.replace(/\s+/g, '-')}']`);
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth' });
+                  found = true;
+                  break;
+                }
+              }
+            }
+          }
+          if (found) break;
+        }
+        if (found) break;
+      }
+    };
+
+    document.querySelectorAll('.highlight').forEach(elem => {
+      elem.addEventListener('click', handleAbilityClick);
+    });
+
+    return () => {
+      document.querySelectorAll('.highlight').forEach(elem => {
+        elem.removeEventListener('click', handleAbilityClick);
+      });
+    };
+  }, [patchnotes]);
+
   return (
     <div className='patchnotes'>
       <Navbar />
@@ -523,7 +604,8 @@ const Patchnotes = ({ game }) => {
           {patchnotes.comments?.map((comment) => (
             <div key={comment.id} className='comment'>
               <img src={`https://ui-avatars.com/api/?name=${comment.user.username}&background=random`} alt={`${comment.user.username}'s avatar`} className='avatar' />
-              <p>{comment.user.username}: {comment.message}</p>
+              <p>{comment.user.username}</p>
+              <p dangerouslySetInnerHTML={{ __html: comment.message }}></p>
               <div className='vote'>
                 <FontAwesomeIcon
                   id={`thumbs-up-${comment.id}`}
@@ -555,8 +637,19 @@ const Patchnotes = ({ game }) => {
               type='text'
               name='message'
               placeholder='Leave a comment...'
+              ref={commentInputRef}
+              onChange={handleCommentInputChange}
               required
             />
+            {abilityDropdown.length > 0 && (
+              <ul className='dropdown'>
+                {abilityDropdown.map((ability, index) => (
+                  <li key={index} onClick={() => handleAbilityName(ability)}>
+                    {ability}
+                  </li>
+                ))}
+              </ul>
+            )}
             <button type='submit' className='comment-button'>Submit</button>
           </form>
         </div>

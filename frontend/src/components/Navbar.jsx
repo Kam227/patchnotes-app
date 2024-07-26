@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useContext } from 'react';
 import { UserContext } from '../../UserContext';
-import '../styles/Navbar.css'
+import '../styles/Navbar.css';
 
 const Navbar = () => {
     const navigate = useNavigate();
@@ -28,10 +27,13 @@ const Navbar = () => {
 
     return (
         <div className='navbar'>
-            <button onClick={handleLogout}>Logout</button>
+            <div className='navbar-title'>PatchCentral</div>
+            <div className='navbar-buttons'>
+                <button onClick={() => navigate('/DevTools')}>Settings</button>
+                <button onClick={handleLogout}>Logout</button>
+            </div>
         </div>
     );
-
-}
+};
 
 export default Navbar;
