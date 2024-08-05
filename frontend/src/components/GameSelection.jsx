@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
+import Footer from './Footer';
 import '../styles/GameSelection.css';
 
 import image1 from '../assets/home/image1.jpg';
@@ -16,11 +17,18 @@ const images = [image1, image2, image3, image4];
 const GameSelection = () => {
     const navigate = useNavigate();
     const [currentImage, setCurrentImage] = useState(0);
+    const [fade, setFade] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
+        window.scrollTo(0, 0);
+
         const interval = setInterval(() => {
-            setCurrentImage((prevImage) => (prevImage + 1) % images.length);
+            setFade(false);
+            setTimeout(() => {
+                setCurrentImage((prevImage) => (prevImage + 1) % images.length);
+                setFade(true);
+            }, 500);
         }, 5000);
 
         return () => clearInterval(interval);
@@ -33,9 +41,11 @@ const GameSelection = () => {
 
     return (
         <div className='game-selection'>
-            <Navbar />
+            <div className="navbar">
+                <Navbar />
+            </div>
             <div
-                className='banner'
+                className={`banner ${fade ? 'fade-in' : 'fade-out'}`}
                 style={{ backgroundImage: `url(${images[currentImage]})` }}
             >
                 <div className='banner-overlay'>
@@ -51,6 +61,10 @@ const GameSelection = () => {
                     </div>
                 </div>
             </div>
+            <div className='about'>
+                <h2>About the PatchCentral Service</h2>
+                <p>This website is not directly associated with any video game company. It is a fan-made service to help players keep track of patch notes and updates for their favorite games.</p>
+            </div>
             <div className='game-logos'>
                 {filteredGames.map(game => (
                     <img
@@ -61,6 +75,7 @@ const GameSelection = () => {
                     />
                 ))}
             </div>
+            <Footer />
         </div>
     );
 }

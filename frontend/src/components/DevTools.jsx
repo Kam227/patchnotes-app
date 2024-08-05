@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from './Navbar';
 import '../styles/DevTools.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTrashAlt } from '@fortawesome/free-solid-svg-icons';
 
 const fillerWords = [
   "is", "are", "now", "the", "and", "a", "an", "in", "on", "to", "from", "for", "with", "of", "at", "by", "but", "or",
@@ -23,48 +25,48 @@ const DevTools = () => {
   const [selectedWords, setSelectedWords] = useState([]);
   const [actionType, setActionType] = useState('');
 
-useEffect(() => {
-  const fetchWords = async () => {
-    try {
-      const wordsResponse = await fetch('http://localhost:3000/words');
-      if (!wordsResponse.ok) {
-        throw new Error('Network response was not ok');
+  useEffect(() => {
+    const fetchWords = async () => {
+      try {
+        const wordsResponse = await fetch('http://localhost:3000/words');
+        if (!wordsResponse.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const wordsData = await wordsResponse.json();
+
+        console.log('Server Response:', wordsData);
+
+        setUsableWords(Array.from(new Set(wordsData.usableWords || [])));
+        setDeletedWords(Array.from(new Set(wordsData.deletedWords || [])));
+        setKeywords(Array.from(new Set(wordsData.keywords || [])));
+        setClassifiers(Array.from(new Set(wordsData.classifiers || [])));
+      } catch (error) {
+        console.error('Error fetching words:', error);
+        setError('Failed to fetch words.');
       }
-      const wordsData = await wordsResponse.json();
+    };
 
-      console.log('Server Response:', wordsData);
-
-      setUsableWords(Array.from(new Set(wordsData.usableWords || [])));
-      setDeletedWords(Array.from(new Set(wordsData.deletedWords || [])));
-      setKeywords(Array.from(new Set(wordsData.keywords || [])));
-      setClassifiers(Array.from(new Set(wordsData.classifiers || [])));
-    } catch (error) {
-      console.error('Error fetching words:', error);
-      setError('Failed to fetch words.');
-    }
-  };
-
-  const fetchAssociations = async () => {
-    try {
-      const associationsResponse = await fetch('http://localhost:3000/associations');
-      if (!associationsResponse.ok) {
-        throw new Error('Network response was not ok');
+    const fetchAssociations = async () => {
+      try {
+        const associationsResponse = await fetch('http://localhost:3000/associations');
+        if (!associationsResponse.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const associationsData = await associationsResponse.json();
+        setNerfs(Array.from(new Set(associationsData.nerf || [])));
+        setBuffs(Array.from(new Set(associationsData.buff || [])));
+      } catch (error) {
+        console.error('Error fetching associations:', error);
+        setError('Failed to fetch associations. Please try again later.');
       }
-      const associationsData = await associationsResponse.json();
-      setNerfs(Array.from(new Set(associationsData.nerf || [])));
-      setBuffs(Array.from(new Set(associationsData.buff || [])));
-    } catch (error) {
-      console.error('Error fetching associations:', error);
-      setError('Failed to fetch associations. Please try again later.');
-    }
-  };
+    };
 
-  fetchWords();
-  fetchAssociations();
-  fetchPatchnotesData();
-}, []);
+    fetchWords();
+    fetchAssociations();
+    fetchPatchnotesData();
+  }, []);
 
-const fetchPatchnotesData = async () => {
+  const fetchPatchnotesData = async () => {
     try {
       const [overwatchResponse, leagueResponse] = await Promise.all([
         fetch('http://localhost:3000/patchnotes/overwatch/'),
@@ -87,7 +89,7 @@ const fetchPatchnotesData = async () => {
       console.error('Error fetching patch details:', error);
       setError('Failed to fetch patch details. Please try again later.');
     }
-};
+  };
 
   const saveWordsToDatabase = async (extractedWords) => {
     try {
@@ -293,15 +295,12 @@ const fetchPatchnotesData = async () => {
 
   return (
     <div className='dev-tools'>
-      <Navbar />
+      <div className='navbar'>
+        <Navbar />
+      </div>
       {error && <div className='error'>{error}</div>}
       <div className='selection-box'>
         <h2>Available Words</h2>
-        <button onClick={() => startAction('keyword')}>Keyword</button>
-        <button onClick={() => startAction('classifier')}>Classifier</button>
-        <button onClick={() => startAction('delete')}>Delete</button>
-        {actionType && <button onClick={applyAction}>Apply {actionType}</button>}
-        {actionType && <button onClick={cancelAction}>Cancel</button>}
         <div className='word-list'>
           {usableWords?.map((word, index) => (
             <span
@@ -313,13 +312,24 @@ const fetchPatchnotesData = async () => {
             </span>
           ))}
         </div>
+        <div className='button-group'>
+          <button className="apply-button" onClick={() => startAction('keyword')}>Keyword</button>
+          <button className="apply-button" onClick={() => startAction('classifier')}>Classifier</button>
+          <button className="cancel-button" onClick={() => startAction('delete')}>Delete</button>
+        </div>
+        {actionType && (
+          <div className='button-group'>
+            <button className="apply-button" onClick={applyAction}>Apply {actionType}</button>
+            <button className="cancel-button" onClick={cancelAction}>Cancel</button>
+          </div>
+        )}
       </div>
       <div className='selection-box'>
         <h2>Keywords</h2>
         <div className='selected-list'>
           {keywords.map((word, index) => (
             <span key={index} className='selected-word'>
-              {word} <span className='trash-icon' onClick={() => deleteWord(word)}>🗑️</span>
+              {word} <FontAwesomeIcon icon={faTrashAlt} className="trash-icon" onClick={() => deleteWord(word)} />
             </span>
           ))}
         </div>
@@ -329,7 +339,7 @@ const fetchPatchnotesData = async () => {
         <div className='selected-list'>
           {classifiers.map((word, index) => (
             <span key={index} className='selected-word'>
-              {word} <span className='trash-icon' onClick={() => deleteWord(word)}>🗑️</span>
+              {word} <FontAwesomeIcon icon={faTrashAlt} className="trash-icon" onClick={() => deleteWord(word)} />
             </span>
           ))}
         </div>
@@ -362,13 +372,15 @@ const fetchPatchnotesData = async () => {
               </div>
             </div>
           )}
-          <ul>
+          <div className="association-list">
             {nerfs.map((association, index) => (
-              <li key={index}>
-                {association.join(' + ')} <span className='trash-icon' onClick={() => deleteAssociation('nerf', index)}>🗑️</span>
-              </li>
+              <div key={index} className="association-card">
+                <div className="association-keyword">{association[0]}</div>
+                <div className="association-classifier">{association[1]}</div>
+                <FontAwesomeIcon icon={faTrashAlt} className="trash-icon" onClick={() => deleteAssociation('nerf', index)} />
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
         <div className='buff-box'>
           <h2>Buffs</h2>
@@ -397,13 +409,15 @@ const fetchPatchnotesData = async () => {
               </div>
             </div>
           )}
-          <ul>
+          <div className="association-list">
             {buffs.map((association, index) => (
-              <li key={index}>
-                {association.join(' + ')} <span className='trash-icon' onClick={() => deleteAssociation('buff', index)}>🗑️</span>
-              </li>
+              <div key={index} className="association-card">
+                <div className="association-keyword">{association[0]}</div>
+                <div className="association-classifier">{association[1]}</div>
+                <FontAwesomeIcon icon={faTrashAlt} className="trash-icon" onClick={() => deleteAssociation('buff', index)} />
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       </div>
       <button className='submit-button' onClick={handleSubmit}>Submit Associations</button>

@@ -542,11 +542,24 @@ app.get('/patchnotes/overwatch/:year/:month/comments/:commentId/replies', async 
   }
 });
 
+app.delete('/patchnotes/overwatch/:year/:month/comments/:commentId/replies/:replyId', async (req, res) => {
+  const { replyId } = req.params;
+  try {
+    const deletedReply = await prisma.reply_ow.delete({
+      where: { id: parseInt(replyId, 10) },
+    });
+    res.json(deletedReply);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete reply' });
+  }
+});
+
 app.post('/patchnotes/league-of-legends/:version/comments/:commentId/replies', async (req, res) => {
   const { message, userId, replyToId, parentReplyId } = req.body;
   const { commentId } = req.params;
   try {
-    const newReply = await prisma.reply_ow.create({
+    const newReply = await prisma.reply_lol.create({
       data: {
         message,
         user: { connect: { id: userId } },
@@ -566,7 +579,7 @@ app.post('/patchnotes/league-of-legends/:version/comments/:commentId/replies', a
 app.get('/patchnotes/league-of-legends/:version/comments/:commentId/replies', async (req, res) => {
   const { commentId } = req.params;
   try {
-    const replies = await prisma.reply_ow.findMany({
+    const replies = await prisma.reply_lol.findMany({
       where: { commentId: parseInt(commentId, 10) },
       include: { user: true, replyTo: true, replies: true },
     });
@@ -577,23 +590,10 @@ app.get('/patchnotes/league-of-legends/:version/comments/:commentId/replies', as
   }
 });
 
-app.delete('/patchnotes/overwatch/:year/:month/comments/:commentId/replies/:replyId', async (req, res) => {
-  const { replyId } = req.params;
-  try {
-    const deletedReply = await prisma.reply_ow.delete({
-      where: { id: parseInt(replyId, 10) },
-    });
-    res.json(deletedReply);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to delete reply' });
-  }
-});
-
 app.delete('/patchnotes/league-of-legends/:version/comments/:commentId/replies/:replyId', async (req, res) => {
   const { replyId } = req.params;
   try {
-    const deletedReply = await prisma.reply_ow.delete({
+    const deletedReply = await prisma.reply_lol.delete({
       where: { id: parseInt(replyId, 10) },
     });
     res.json(deletedReply);
@@ -885,6 +885,10 @@ app.get('/winratePredictor', async (req, res) => {
   }
 });
 
-app.get('/:character', (req, res) => {
+app.get('/overwatch/:character', (req, res) => {
+  res.send('character page');
+});
+
+app.get('/league-of-legends/:character', (req, res) => {
   res.send('character page');
 });
