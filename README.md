@@ -37,3 +37,5 @@ Pain Points: Sarah struggles with finding time to sift through lengthy and techn
 9. As a user, I want to sort patch notes by date or game, so that I can find the most relevant updates quickly.
 10. As a user, I want to go in-depth about specific items or characters updated, so that I can understand the impact of these changes.
 
+Project demo [https://drive.google.com/file/d/1LdfyrRGsCHqY-BvD_njho2VAdbuhsnIU/view?usp=sharing]
+
