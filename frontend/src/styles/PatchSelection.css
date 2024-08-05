@@ -1,4 +1,72 @@
 .patch-selection {
-    height: 100%;
+    width: 100%;
+    min-height: 100vh;
     padding-top: 80px;
+    margin-top: 335px;
+    text-align: center;
+}
+
+.patch-selection p {
+    display: flex;
+    justify-content: center;
+}
+
+.navbar {
+    width: 100%;
+    height: 80px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background-color: white;
+    z-index: 1000;
+}
+
+.patch-note {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 30px 40px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: background-color 0.3s, box-shadow 0.3s;
+    font-size: 20px;
+    margin-right: 80px;
+    margin-left: 60px;
+}
+
+.patch-note:hover {
+    background-color: #f1f1f1;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.patch-note p {
+    font-size: 22px;
+    color: #333;
+    margin: 0;
+    font-weight: bold;
+}
+
+.patch-note p span {
+    font-weight: bold;
+    color: #0073e6;
+}
+
+.show-more-button {
+    background-color: #0073e6;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: background-color 0.3s;
+    margin-bottom: 20px;
+}
+
+.show-more-button:hover {
+    background-color: #005bb5;
 }

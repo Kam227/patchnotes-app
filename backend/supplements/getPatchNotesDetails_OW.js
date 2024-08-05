@@ -29,8 +29,7 @@ const getPatchNotesDetails_OW = async (url, year, month) => {
             TANK: patchDetails.tank,
             DAMAGE: patchDetails.damage,
             SUPPORT: patchDetails.support,
-            "MAP UPDATES": patchDetails.mapUpdates,
-            "BUG FIXES": patchDetails.bugFixes
+            "MAP UPDATES": patchDetails.mapUpdates
         };
 
         const parseHeroUpdate = (element) => {
@@ -76,15 +75,8 @@ const getPatchNotesDetails_OW = async (url, year, month) => {
             patchDetails.mapUpdates.push(mapUpdate);
         });
 
-        $('.PatchNotes-section-generic_update').each((index, element) => {
-            const bugFix = {
-                name: $(element).find('.PatchNotesGeneralUpdate-title').text().trim(),
-                content: []
-            };
-            $(element).find('.PatchNotesGeneralUpdate-description ul li').each((_, li) => {
-                bugFix.content.push($(li).text().trim());
-            });
-            patchDetails.bugFixes.push(bugFix);
+        $('.PatchNotes-section-generic_update .PatchNotesGeneralUpdate-description ul li').each((index, element) => {
+            patchDetails.bugFixes.push($(element).text().trim());
         });
 
         const patch = await prisma.patchnotes_ow.findFirst({

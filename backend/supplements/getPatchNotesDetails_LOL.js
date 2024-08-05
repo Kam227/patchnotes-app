@@ -4,7 +4,6 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const getPatchNotesDetails_LOL = async (url, version, prefix) => {
-
     const uri = `${url}${prefix ? 'lol-' : ''}patch-${version}-notes/`;
 
     try {
@@ -26,36 +25,50 @@ const getPatchNotesDetails_LOL = async (url, version, prefix) => {
 
         const parseChampionUpdate = (element) => {
             const championUpdate = {};
-            championUpdate.title = $(element).find('.change-title').text().trim();
-            championUpdate.generalUpdates = [];
-            $(element).find('ul li').each((_, li) => {
-                championUpdate.generalUpdates.push($(li).text().trim());
-            });
+            const title = $(element).find('.change-title').text().trim();
+            if (title) {
+                championUpdate.title = title;
+                championUpdate.generalUpdates = [];
+                championUpdate.abilityUpdates = [];
 
-            championUpdate.abilityUpdates = [];
-            $(element).find('.change-detail-title').each((_, ability) => {
-                const abilityUpdate = {
-                    name: $(ability).text().trim(),
-                    content: []
-                };
-                $(ability).next('ul').find('li').each((_, li) => {
-                    abilityUpdate.content.push($(li).text().trim());
+                $(element).find('.change-detail-title').each((_, detail) => {
+                    const detailTitle = $(detail).text().trim();
+                    if (detailTitle === "Base Stats") {
+                        $(detail).next('ul').find('li').each((_, li) => {
+                            championUpdate.generalUpdates.push($(li).text().trim());
+                        });
+                    } else {
+                        const abilityUpdate = {
+                            name: detailTitle,
+                            content: []
+                        };
+                        $(detail).next('ul').find('li').each((_, li) => {
+                            abilityUpdate.content.push($(li).text().trim());
+                        });
+                        if (abilityUpdate.name) {
+                            championUpdate.abilityUpdates.push(abilityUpdate);
+                        }
+                    }
                 });
-                championUpdate.abilityUpdates.push(abilityUpdate);
-            });
 
-            return championUpdate;
+                return championUpdate;
+            }
+            return null;
         };
 
         const parseItemUpdate = (element) => {
             const itemUpdate = {};
-            itemUpdate.title = $(element).find('.change-title').text().trim();
-            itemUpdate.content = [];
-            $(element).find('ul li').each((_, li) => {
-                itemUpdate.content.push($(li).text().trim());
-            });
+            const title = $(element).find('.change-title').text().trim();
+            if (title) {
+                itemUpdate.title = title;
+                itemUpdate.content = [];
+                $(element).find('ul li').each((_, li) => {
+                    itemUpdate.content.push($(li).text().trim());
+                });
 
-            return itemUpdate;
+                return itemUpdate;
+            }
+            return null;
         };
 
         let parseChampions = true;
@@ -75,11 +88,17 @@ const getPatchNotesDetails_LOL = async (url, version, prefix) => {
 
             if (parseChampions) {
                 $(element).find('.patch-change-block').each((i, el) => {
-                    patchDetails.champions.push(parseChampionUpdate(el));
+                    const championUpdate = parseChampionUpdate(el);
+                    if (championUpdate) {
+                        patchDetails.champions.push(championUpdate);
+                    }
                 });
             } else if (parseItems) {
                 $(element).find('.patch-change-block').each((i, el) => {
-                    patchDetails.items.push(parseItemUpdate(el));
+                    const itemUpdate = parseItemUpdate(el);
+                    if (itemUpdate) {
+                        patchDetails.items.push(itemUpdate);
+                    }
                 });
             } else if (parseBugFixes) {
                 $(element).find('ul li').each((i, el) => {

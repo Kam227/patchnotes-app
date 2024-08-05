@@ -1,16 +1,30 @@
 .game-selection {
     display: flex;
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     justify-content: flex-start;
-    width: 100%;
-    height: 100vh;
-    margin-top: 100px;
+    width: 100vw;
+    height: 100%;
+    padding-top: 100px;
+    overflow-x: hidden;
+}
+
+.navbar {
+    width: 100vw;
+    height: 80px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background-color: white;
+    z-index: 1000;
 }
 
 .banner {
-    width: 100%;
-    height: calc(100vh - 80px);
+    width: 100vw;
+    height: 650px;
     background-size: cover;
     background-position: center;
     position: relative;
@@ -19,6 +33,16 @@
     justify-content: center;
     text-align: center;
     font-family: 'Arial', sans-serif;
+    transition: opacity 1.5s ease-in-out;
+    opacity: 0;
+}
+
+.fade-in {
+    opacity: 1;
+}
+
+.fade-out {
+    opacity: 0;
 }
 
 .banner::after {
@@ -64,21 +88,34 @@
     border-radius: 5px;
 }
 
+.about {
+    padding: 20px;
+    text-align: center;
+    width: 100%;
+}
+
+.about h2 {
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+.about p {
+    font-size: 16px;
+    margin: 0;
+}
+
 .game-logos {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     width: 100%;
-    overflow-y: auto;
-    padding-top: 60px;
-    padding-bottom: 60px;
-    margin-top: 20px;
+    padding: 20px 0;
 }
 
 .game-logos img {
     cursor: pointer;
-    width: 350px;
+    width: 500px;
     height: auto;
     margin: 20px 0;
     transition: transform 0.3s;

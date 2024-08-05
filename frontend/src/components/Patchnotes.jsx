@@ -3,11 +3,13 @@ import { useParams } from 'react-router-dom';
 import { UserContext } from '../../UserContext';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faThumbsUp } from '@fortawesome/free-solid-svg-icons';
+import { faThumbsUp, faTrash, faPencilAlt, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import Navbar from './Navbar';
+import Footer from './Footer';
 import '../styles/Patchnotes.css';
+import RenderUpdates from './RenderUpdates';
 
-const Patchnotes = ({ game }) => {
+const Patchnotes = ({ game, openModal }) => {
   const { year, month, version } = useParams();
   const { user } = useContext(UserContext);
   const [patchnotes, setPatchnotes] = useState({
@@ -34,6 +36,8 @@ const Patchnotes = ({ game }) => {
   const [loading, setLoading] = useState(true);
   const [abilities, setAbilities] = useState([]);
   const [abilityDropdown, setAbilityDropdown] = useState([]);
+  const [commentText, setCommentText] = useState('');
+  const [showReplies, setShowReplies] = useState({});
   const navigate = useNavigate();
   const commentInputRef = useRef();
 
@@ -52,6 +56,8 @@ const Patchnotes = ({ game }) => {
   };
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+
     const fetchPatchnotes = async () => {
       try {
         let url = '';
@@ -185,13 +191,10 @@ const Patchnotes = ({ game }) => {
       const newComment = await response.json();
       newComment.user = { username: user.username };
       newComment.replies = [];
-      setPatchnotes((prevPatchnotes) => {
-        const updatedComments = [...prevPatchnotes.comments, newComment];
-        return {
-          ...prevPatchnotes,
-          comments: updatedComments
-        };
-      });
+      setPatchnotes((prevPatchnotes) => ({
+        ...prevPatchnotes,
+        comments: [...prevPatchnotes.comments, newComment],
+      }));
     } catch (error) {
       console.error(error);
     }
@@ -310,6 +313,11 @@ const Patchnotes = ({ game }) => {
   };
 
   const upvoteComment = async (commentId) => {
+    if (!user) {
+      openModal();
+      return;
+    }
+
     try {
       let url = '';
       if (game === 'overwatch') {
@@ -348,12 +356,21 @@ const Patchnotes = ({ game }) => {
   };
 
   const openReplyModal = (commentId, replyToId, parentReplyId) => {
+    if (!user) {
+      openModal();
+      return;
+    }
+
     setCurrentReply({ message: '', replyToId: replyToId || user.id, commentId, parentReplyId: parentReplyId || null });
     setModalOpen(true);
   };
 
   const handleCharacterClick = (character) => {
-    navigate(`/${character}`, { state: { character, id: patchnotes.id, game } });
+    if (game === 'overwatch') {
+      navigate(`/overwatch/${character}`, { state: { character, id: patchnotes.id, game } });
+    } else {
+      navigate(`/league-of-legends/${character}`, { state: { character, id: patchnotes.id, game } });
+    }
   };
 
   const filterUpdates = (updates) => {
@@ -381,118 +398,59 @@ const Patchnotes = ({ game }) => {
     }).filter(update => update.generalUpdates?.length > 0 || update.abilityUpdates?.length > 0 || filter === 'all');
   };
 
-  const renderUpdates = (updates) => {
-    return updates.map((update, index) => (
-      <div key={index}>
-        {update.title && (
-          <h3 onClick={() => handleCharacterClick(update.title)}>
-            {update.title}
-          </h3>
-        )}
-        {update.generalUpdates && update.generalUpdates.length > 0 && (
-          <div>
-            <ul>
-              {update.generalUpdates.map((item, idx) => (
-                <li key={idx}>{item.text}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {update.abilityUpdates && update.abilityUpdates.length > 0 && (
-          <div>
-            {update.abilityUpdates.map((ability, idx) => {
-              const abilityDiff = abilityDifferences.find(ad => ad.character === update.title && ad.name === ability.name);
-              const abilityPercentile = abilityPercentiles.find(ad => ad.character === update.title && ad.name === ability.name);
-              const historicalMessage = abilityDiff && abilityDiff.count > 1
-                ? `The ability has changed by ${abilityDiff.difference.toFixed(1)}% relative to other patches`
-                : 'Insufficient data';
-              return (
-                <div key={idx} id={`ability-${ability.name.replace(/\s+/g, '-')}`}>
-                  <h5>
-                    {ability.name}
-                    {abilityDiff && (
-                      <span>
-                        {` (Percentage change: ${abilityDiff.percentile.toFixed(1)}, `}
-                        <span title={historicalMessage}>
-                          {abilityDiff.count > 1 ?
-                            `Historical change: ${abilityDiff.difference >= 0 ? `+${abilityDiff.difference.toFixed(1)}` : abilityDiff.difference.toFixed(1)}` :
-                            'Historical change: Not enough data'}
-                        </span>
-                        {')'}
-                      </span>
-                    )}
-                    {abilityPercentile && (
-                      <span>
-                        {` (Percentile rank: ${abilityPercentile.percentile.toFixed(1)}%)`}
-                      </span>
-                    )}
-                  </h5>
-                  <ul>
-                    {ability.content?.map((detail, i) => (
-                      <li key={i}>{detail.text}</li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {update.content && update.content.length > 0 && (
-          <div>
-            <ul>
-              {update.content.map((content, idx) => (
-                <li key={idx}>{content}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    ));
-  };
-
   const renderBugFixes = (bugFixes) => {
-    if (Array.isArray(bugFixes) && game === 'league-of-legends') {
-      return (
-        <div>
-          <h2>Bug Fixes</h2>
-          <ul>
-            {bugFixes?.map((fix, index) => (
-              <li key={index}>{fix}</li>
-            ))}
-          </ul>
-        </div>
-      );
-    } else {
-      return (
-        <div>
-          <h2>Bug Fixes Overwatch</h2>
-          <ul>
-            {bugFixes?.map((fix, index) => (
-              <li key={index}>{fix.name}: {fix.content.join(', ')}</li>
-            ))}
-          </ul>
-        </div>
-      );
-    }
+    return (
+      <div>
+        <h2>Bug Fixes</h2>
+        <ul>
+          {bugFixes?.map((fix, index) => (
+            <li key={index}>{fix}</li>
+          ))}
+        </ul>
+      </div>
+    );
   };
 
   const renderCategories = (category, notes) => (
     <>
       <h2>{category} Updates</h2>
-      {Array.isArray(notes) && notes.length > 0 && renderUpdates(filterUpdates(notes))}
+      {Array.isArray(notes) && notes.length > 0 && (
+        <RenderUpdates
+          game={game}
+          updates={filterUpdates(notes)}
+          handleCharacterClick={handleCharacterClick}
+          filter={filter}
+          abilityDifferences={abilityDifferences}
+          abilityPercentiles={abilityPercentiles}
+        />
+      )}
     </>
   );
 
   const renderReplies = (replies, commentId) => {
-    return Array.isArray(replies) ? replies.map((reply) => (
-      <div key={reply.id} className='reply'>
-        <img src={`https://ui-avatars.com/api/?name=${reply.user.username}&background=random`} alt={`${reply.user.username}'s avatar`} className='avatar' />
-        <p>{reply.user.username}: @{reply.replyTo.username} {reply.message}</p>
-        {renderReplies(reply.replies || [], commentId)}
-        <button className='reply-button' onClick={() => openReplyModal(commentId, reply.user.id, reply.id)}>Reply</button>
-        <button className='delete-button' onClick={() => deleteReply(commentId, reply.id)}>Delete</button>
+    return Array.isArray(replies) ? (
+      <div className='replies'>
+        {replies.map((reply) => (
+          <div key={reply.id} className='reply'>
+            <div className='reply-header'>
+              <img src={`https://ui-avatars.com/api/?name=${reply.user.username}&background=random`} alt={`${reply.user.username}'s avatar`} className='avatar' />
+              <p className='reply-username'>{reply.user.username}</p>
+            </div>
+            <p className='reply-message'>@{reply.replyTo.username} {reply.message}</p>
+            <div className='reply-actions'>
+              <p className='reply-button' onClick={() => openReplyModal(commentId, reply.user.id, reply.id)}>Reply</p>
+              {reply.user.username === user?.username && (
+                <FontAwesomeIcon
+                  icon={faTrash}
+                  className='delete-button'
+                  onClick={() => deleteReply(commentId, reply.id)}
+                />
+              )}
+            </div>
+          </div>
+        ))}
       </div>
-    )) : null;
+    ) : null;
   };
 
   const categoryButtons = {
@@ -513,18 +471,18 @@ const Patchnotes = ({ game }) => {
   };
 
   const handleAbilityName = (ability) => {
-    const input = commentInputRef.current.value;
+    const input = commentText;
     const atIndex = input.lastIndexOf('@');
-    const newInput = input.slice(0, atIndex + 1) + ability + ' ';
-    commentInputRef.current.value = newInput;
+    const newInput = input.slice(0, atIndex) + `@${ability} `;
+    setCommentText(newInput);
     setAbilityDropdown([]);
   };
 
   const highlightAbilities = (message) => {
     const regex = /@([a-zA-Z\s]+)/g;
     return message.replace(regex, (match, p1) => {
-      const ability = p1.trim();
-      return `<span class="highlight" data-ability="${ability.replace(/\s+/g, '-')}">@${ability}</span>`;
+        const ability = p1.trim();
+        return `<span class="highlight" data-ability="${ability.replace(/\s+/g, '-')}">@${ability}</span>`;
     });
   };
 
@@ -563,130 +521,166 @@ const Patchnotes = ({ game }) => {
     };
   }, [patchnotes]);
 
+  const toggleReplies = (commentId) => {
+    setShowReplies((prevShowReplies) => ({
+      ...prevShowReplies,
+      [commentId]: !prevShowReplies[commentId],
+    }));
+  };
+
+  const filteredCategories = () => {
+    if (filter === 'all') {
+      return patchnotes.details;
+    }
+    return {
+      ...patchnotes.details,
+      mapUpdates: [],
+      bugFixes: [],
+    };
+  };
+
   return (
-    <div className='patchnotes'>
-      <Navbar />
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        <div className='patches'>
-          <div className="filter-buttons">
-            <button onClick={() => setFilter('all')}>All</button>
-            <button onClick={() => setFilter('buff')}>Buffs</button>
-            <button onClick={() => setFilter('nerf')}>Nerfs</button>
+    <div>
+      <div className='patchnotes'>
+        <div className='left-section'>
+          <div className="navbar">
+            <Navbar game={game} />
           </div>
-          <div className="category-buttons">
-            {categoryButtons[game]?.map(category => (
-              <button key={category} onClick={() => setCategoryFilter(category)}>{category}</button>
-            ))}
-          </div>
-          {game === 'overwatch' ? (
-            <>
-              {categoryFilter === 'all' || categoryFilter === 'Tank' ? renderCategories('Tank', patchnotes.details.tank) : null}
-              {categoryFilter === 'all' || categoryFilter === 'Damage' ? renderCategories('Damage', patchnotes.details.damage) : null}
-              {categoryFilter === 'all' || categoryFilter === 'Support' ? renderCategories('Support', patchnotes.details.support) : null}
-              {categoryFilter === 'all' || categoryFilter === 'Map Updates' ? renderCategories('Map', patchnotes.details.mapUpdates) : null}
-              {categoryFilter === 'all' || categoryFilter === 'Bug Fixes' ? renderBugFixes(patchnotes.details.bugFixes) : null}
-            </>
+          {loading ? (
+            <p>Loading...</p>
           ) : (
             <>
-              {categoryFilter === 'all' || categoryFilter === 'Champions' ? renderCategories('Champion', patchnotes.details.champions) : null}
-              {categoryFilter === 'all' || categoryFilter === 'Items' ? renderCategories('Item', patchnotes.details.items) : null}
-              {categoryFilter === 'all' || categoryFilter === 'Bug Fixes' ? renderBugFixes(patchnotes.details.bugFixes) : null}
+              <div className="filter-category-buttons">
+                <button onClick={() => { setCategoryFilter('all'); setFilter('all'); }}>All</button>
+                {categoryButtons[game]?.map(category => (
+                  <button key={category} onClick={() => setCategoryFilter(category)}>{category}</button>
+                ))}
+                <button onClick={() => setFilter('buff')}>Buffs</button>
+                <button onClick={() => setFilter('nerf')}>Nerfs</button>
+              </div>
+              <div className='patches'>
+                {game === 'overwatch' ? (
+                  <>
+                    {categoryFilter === 'all' || categoryFilter === 'Tank' ? renderCategories('Tank', filteredCategories().tank) : null}
+                    {categoryFilter === 'all' || categoryFilter === 'Damage' ? renderCategories('Damage', filteredCategories().damage) : null}
+                    {categoryFilter === 'all' || categoryFilter === 'Support' ? renderCategories('Support', filteredCategories().support) : null}
+                    {categoryFilter === 'all' || categoryFilter === 'Map Updates' ? renderCategories('Map', filteredCategories().mapUpdates) : null}
+                    {categoryFilter === 'all' || categoryFilter === 'Bug Fixes' ? renderBugFixes(patchnotes.details.bugFixes) : null}
+                  </>
+                ) : (
+                  <>
+                    {categoryFilter === 'all' || categoryFilter === 'Champions' ? renderCategories('Champion', filteredCategories().champions) : null}
+                    {categoryFilter === 'all' || categoryFilter === 'Items' ? renderCategories('Item', filteredCategories().items) : null}
+                    {categoryFilter === 'all' || categoryFilter === 'Bug Fixes' ? renderBugFixes(patchnotes.details.bugFixes) : null}
+                  </>
+                )}
+              </div>
             </>
           )}
         </div>
-      )}
-
-      <div className='comments'>
-        <h2>Comments</h2>
-        <div>
-          {patchnotes.comments?.map((comment) => (
-            <div key={comment.id} className='comment'>
-              <img src={`https://ui-avatars.com/api/?name=${comment.user.username}&background=random`} alt={`${comment.user.username}'s avatar`} className='avatar' />
-              <p>{comment.user.username}</p>
-              <p dangerouslySetInnerHTML={{ __html: comment.message }}></p>
-              <div className='vote'>
-                <FontAwesomeIcon
-                  id={`thumbs-up-${comment.id}`}
-                  icon={faThumbsUp}
-                  onClick={() => upvoteComment(comment.id)}
-                  style={{ cursor: 'pointer' }}
-                />
-                <p>{comment.voteCount}</p>
-              </div>
-              <p onClick={() => deleteComment(comment.id)}>🗑️</p>
-              {renderReplies(comment.replies || [], comment.id)}
-              <button className='reply-button' onClick={() => openReplyModal(comment.id, comment.user.id, null)}>Reply</button>
+        <div className='right-section'>
+          <div className='comments'>
+            <div className='comment-input-wrapper' onClick={() => {
+              if (user) {
+                setModalOpen(true);
+              } else {
+                openModal();
+              }
+            }}>
+              <input
+                className='comment-input'
+                type='text'
+                placeholder='Leave a comment...'
+                readOnly
+              />
+              <FontAwesomeIcon icon={faPencilAlt} className='pencil-icon' />
             </div>
-          ))}
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const formData = {
-                message: e.target.message.value,
-                patchId: patchnotes.id,
-                userId: user.id,
-              };
-              await submitComment(formData);
-              e.target.reset();
-            }}
-          >
-            <input
-              className='comment-input'
-              type='text'
-              name='message'
-              placeholder='Leave a comment...'
-              ref={commentInputRef}
-              onChange={handleCommentInputChange}
-              required
-            />
-            {abilityDropdown.length > 0 && (
-              <ul className='dropdown'>
-                {abilityDropdown.map((ability, index) => (
-                  <li key={index} onClick={() => handleAbilityName(ability)}>
-                    {ability}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <button type='submit' className='comment-button'>Submit</button>
-          </form>
+            {patchnotes.comments?.map((comment) => (
+              <div key={comment.id} className='comment'>
+                <div className='comment-header'>
+                  <img src={`https://ui-avatars.com/api/?name=${comment.user.username}&background=random`} alt={`${comment.user.username}'s avatar`} className='avatar' />
+                  <p className='comment-username'>{comment.user.username}</p>
+                </div>
+                <p className='comment-message' dangerouslySetInnerHTML={{ __html: comment.message }}></p>
+                <div className='comment-actions'>
+                  <div className='vote'>
+                    <FontAwesomeIcon
+                      id={`thumbs-up-${comment.id}`}
+                      icon={faThumbsUp}
+                      onClick={() => upvoteComment(comment.id)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <p>{comment.voteCount}</p>
+                  </div>
+                  <p className='reply-button' onClick={() => openReplyModal(comment.id, comment.user.id, null)}>Reply</p>
+                  {comment.user.username === user?.username && (
+                    <FontAwesomeIcon
+                      icon={faTrash}
+                      className='delete-button'
+                      onClick={() => deleteComment(comment.id)}
+                    />
+                  )}
+                  <button className='show-replies-button' onClick={() => toggleReplies(comment.id)}>
+                    Show Replies <FontAwesomeIcon icon={faChevronDown} />
+                  </button>
+                </div>
+                {showReplies[comment.id] && renderReplies(comment.replies || [], comment.id)}
+              </div>
+            ))}
+          </div>
         </div>
+        {modalOpen && (
+          <>
+            <div className='overlay' onClick={() => setModalOpen(false)}></div>
+            <div className='modal'>
+              <h2>{currentReply.commentId ? 'Reply to Comment' : 'Leave a Comment'}</h2>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const formData = {
+                    message: commentText,
+                    patchId: patchnotes.id,
+                    userId: user.id,
+                  };
+                  if (currentReply.commentId) {
+                    formData.commentId = currentReply.commentId;
+                    formData.replyToId = currentReply.replyToId;
+                    formData.parentReplyId = currentReply.parentReplyId;
+                    await submitReply(formData, patchnotes.comments.find(comment => comment.id === currentReply.commentId)?.user.username || '');
+                  } else {
+                    await submitComment(formData);
+                  }
+                  setCommentText('');
+                  setModalOpen(false);
+                }}
+              >
+                <textarea
+                  name='message'
+                  placeholder='Your comment...'
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  onInput={handleCommentInputChange}
+                  required
+                />
+                {abilityDropdown.length > 0 && (
+                  <ul className='dropdown'>
+                    {abilityDropdown.map((ability, index) => (
+                      <li key={index} onClick={() => handleAbilityName(ability)}>
+                        {ability}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <button type='submit' className='comment-button'>Submit</button>
+              </form>
+            </div>
+          </>
+        )}
       </div>
 
-      {modalOpen && (
-        <>
-          <div className='overlay' onClick={() => setModalOpen(false)}></div>
-          <div className='modal'>
-            <h2>Reply</h2>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const formData = {
-                  message: currentReply.message,
-                  commentId: currentReply.commentId,
-                  userId: user.id,
-                  replyToId: currentReply.replyToId,
-                  parentReplyId: currentReply.parentReplyId
-                };
-                const replyToUsername = patchnotes.comments.find(comment => comment.id === currentReply.commentId)?.user.username || '';
-                await submitReply(formData, replyToUsername);
-                setCurrentReply({ message: '', replyToId: null, commentId: null, parentReplyId: null });
-              }}
-            >
-              <textarea
-                name='message'
-                placeholder='Your reply...'
-                required
-                value={currentReply.message}
-                onChange={(e) => setCurrentReply({ ...currentReply, message: e.target.value })}
-              />
-              <button type='submit' className='reply-button'>Submit</button>
-            </form>
-          </div>
-        </>
-      )}
+      <div>
+        <Footer />
+      </div>
     </div>
   );
 };
